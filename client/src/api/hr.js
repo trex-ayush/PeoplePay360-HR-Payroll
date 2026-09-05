@@ -59,3 +59,19 @@ export const salaryRulesApi = {
   update: (id, body) => api.patch(`/salary-rules/${id}`, body),
   remove: (id) => api.delete(`/salary-rules/${id}`),
 }
+
+export const payrunsApi = {
+  list: (params) => api.get(`/payruns${query(params)}`),
+  eligibleEmployees: (params) => api.get(`/payruns/eligible-employees${query(params)}`),
+  get: (id) => api.get(`/payruns/${id}`),
+  create: (body) => api.post('/payruns', body),
+  compute: (id) => api.post(`/payruns/${id}/compute`),
+  validate: (id) => api.post(`/payruns/${id}/validate`),
+  markPaid: (id) => api.post(`/payruns/${id}/mark-paid`),
+  remove: (id) => api.delete(`/payruns/${id}`),
+}
+
+export const payslipsApi = {
+  list: (params) => api.get(`/payslips${query(params)}`),
+  get: (id) => api.get(`/payslips/${id}`),
+}

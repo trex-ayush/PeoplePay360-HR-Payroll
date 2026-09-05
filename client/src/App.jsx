@@ -12,6 +12,10 @@ import DepartmentsList from '@/pages/departments/DepartmentsList'
 import ContractsList from '@/pages/contracts/ContractsList'
 import StructuresList from '@/pages/salary/StructuresList'
 import StructureDetail from '@/pages/salary/StructureDetail'
+import PayrunsList from '@/pages/payroll/PayrunsList'
+import PayrunDetail from '@/pages/payroll/PayrunDetail'
+import PayslipsList from '@/pages/payroll/PayslipsList'
+import PayslipDetail from '@/pages/payroll/PayslipDetail'
 
 const HR = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
 const PAYROLL = ['hr_payroll_user', 'hr_payroll_manager', 'admin']
@@ -85,6 +89,39 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/payruns"
+          element={
+            <ProtectedRoute roles={PAYROLL}>
+              <PayrunsList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payruns/:id"
+          element={
+            <ProtectedRoute roles={PAYROLL}>
+              <PayrunDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payslips"
+          element={
+            <ProtectedRoute roles={PAYROLL}>
+              <PayslipsList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payslips/:id"
+          element={
+            <ProtectedRoute roles={PAYROLL}>
+              <PayslipDetail />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/salary-structures/:id"
           element={

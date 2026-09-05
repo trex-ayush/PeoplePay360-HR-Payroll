@@ -35,3 +35,8 @@ export const COMPUTE_TYPES = ['fixed', 'percent', 'formula']
 // Bases a percentage rule can be taken of: the contract wage, or any rule code
 // computed earlier in the sequence.
 export const PERCENT_BASES = ['WAGE', 'BASIC', 'GROSS']
+
+export const PAYRUN_STATES = ['draft', 'computed', 'validated', 'paid']
+
+// A payslip only exists once its payrun has been computed, so there is no draft.
+export const PAYSLIP_STATES = ['done', 'paid']

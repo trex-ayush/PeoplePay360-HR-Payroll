@@ -7,6 +7,8 @@ import scheduleRoutes from './schedules.js'
 import contractRoutes from './contracts.js'
 import salaryStructureRoutes from './salaryStructures.js'
 import salaryRuleRoutes from './salaryRules.js'
+import payrunRoutes from './payruns.js'
+import payslipRoutes from './payslips.js'
 
 const router = Router()
 
@@ -25,5 +27,7 @@ router.use('/working-schedules', scheduleRoutes)
 router.use('/contracts', contractRoutes)
 router.use('/salary-structures', salaryStructureRoutes)
 router.use('/salary-rules', salaryRuleRoutes)
+router.use('/payruns', payrunRoutes)
+router.use('/payslips', payslipRoutes)
 
 export default router

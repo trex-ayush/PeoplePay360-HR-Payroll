@@ -52,3 +52,15 @@ export const COMPUTE_TYPES = [
   { value: 'percent', label: 'Percentage' },
   { value: 'formula', label: 'Formula' },
 ]
+
+export const PAYRUN_STATES = [
+  { value: 'draft', label: 'Draft', tone: 'neutral' },
+  { value: 'computed', label: 'Computed', tone: 'info' },
+  { value: 'validated', label: 'Validated', tone: 'success' },
+  { value: 'paid', label: 'Paid', tone: 'purple' },
+]
+
+export const PAYSLIP_STATES = [
+  { value: 'done', label: 'Done', tone: 'info' },
+  { value: 'paid', label: 'Paid', tone: 'success' },
+]
