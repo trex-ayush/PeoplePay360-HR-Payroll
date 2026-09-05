@@ -2,7 +2,6 @@ import { Outlet } from 'react-router-dom'
 import {
   CalendarClock,
   CalendarOff,
-  Calculator,
   Clock,
   FileText,
   Home,
@@ -52,12 +51,6 @@ const SECTIONS = [
         label: 'Salary Structures',
         roles: PAYROLL,
         icon: <Layers {...iconProps} />,
-      },
-      {
-        to: '/salary-rules',
-        label: 'Salary Rules',
-        roles: PAYROLL,
-        icon: <Calculator {...iconProps} />,
       },
     ],
   },

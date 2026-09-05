@@ -27,3 +27,11 @@ export const DAYS = [
 ]
 
 export const CONTRACT_STATES = ['draft', 'running', 'expired']
+
+export const RULE_CATEGORIES = ['BASIC', 'ALW', 'GROSS', 'DED', 'NET']
+
+export const COMPUTE_TYPES = ['fixed', 'percent', 'formula']
+
+// Bases a percentage rule can be taken of: the contract wage, or any rule code
+// computed earlier in the sequence.
+export const PERCENT_BASES = ['WAGE', 'BASIC', 'GROSS']

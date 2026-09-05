@@ -1,10 +1,12 @@
 import { useEffect } from 'react'
 
-export function useClickOutside(ref, handler) {
+// Accepts one ref or several, so a trigger and its portalled menu can count as
+// a single region.
+export function useClickOutside(refs, handler) {
   useEffect(() => {
+    const list = Array.isArray(refs) ? refs : [refs]
     const listener = (event) => {
-      const el = ref.current
-      if (!el || el.contains(event.target)) return
+      if (list.some((ref) => ref.current?.contains(event.target))) return
       handler(event)
     }
     document.addEventListener('mousedown', listener)
@@ -13,5 +15,5 @@ export function useClickOutside(ref, handler) {
       document.removeEventListener('mousedown', listener)
       document.removeEventListener('touchstart', listener)
     }
-  }, [ref, handler])
+  }, [refs, handler])
 }

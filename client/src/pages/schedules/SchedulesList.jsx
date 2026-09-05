@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge, Button, DataTable, EmptyState, Input } from '@/components/ui'
+import { ScheduleDrawer } from './ScheduleDrawer'
 import { schedulesApi } from '@/api/hr'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { SCHEDULE_TYPES } from '@/config/constants'
@@ -46,12 +46,13 @@ const columns = [
 
 export default function SchedulesList() {
   usePageTitle('Working Schedules')
-  const navigate = useNavigate()
 
   const [schedules, setSchedules] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [openId, setOpenId] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -74,7 +75,7 @@ export default function SchedulesList() {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [search])
+  }, [search, reloadKey])
 
   return (
     <PageContainer>
@@ -84,7 +85,7 @@ export default function SchedulesList() {
         actions={
           <Button
             iconLeft={<Plus size={16} />}
-            onClick={() => navigate('/working-schedules/new')}
+            onClick={() => setOpenId('new')}
           >
             New Schedule
           </Button>
@@ -106,7 +107,7 @@ export default function SchedulesList() {
         rowKey={(row) => row._id}
         loading={loading}
         error={error}
-        onRowClick={(row) => navigate(`/working-schedules/${row._id}`)}
+        onRowClick={(row) => setOpenId(row._id)}
         rounded="lg"
         emptyState={
           <EmptyState
@@ -115,6 +116,17 @@ export default function SchedulesList() {
           />
         }
       />
+
+      {openId ? (
+        <ScheduleDrawer
+          scheduleId={openId}
+          onClose={() => setOpenId(null)}
+          onSaved={() => {
+            setOpenId(null)
+            setReloadKey((k) => k + 1)
+          }}
+        />
+      ) : null}
     </PageContainer>
   )
 }

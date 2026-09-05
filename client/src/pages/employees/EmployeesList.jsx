@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { LayoutGrid, List as ListIcon, Plus, Search } from 'lucide-react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -14,10 +13,13 @@ import {
   Skeleton,
 } from '@/components/ui'
 import { RowActions } from '@/components/RowActions'
+import { EmployeeDrawer } from './EmployeeDrawer'
 import { employeesApi } from '@/api/hr'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { getErrorMessage } from '@/utils/errorUtils'
+import { storage } from '@/utils/storage'
+import { STORAGE_KEYS } from '@/config/constants'
 import { cn } from '@/utils/cn'
 
 const buildColumns = ({ onEdit, onDelete }) => [
@@ -147,16 +149,20 @@ function ViewToggle({ view, onChange }) {
 
 export default function EmployeesList() {
   usePageTitle('Employees')
-  const navigate = useNavigate()
   const notify = useNotify()
 
-  const [view, setView] = useState('kanban')
+  const [view, setView] = useState(() => storage.getRaw(STORAGE_KEYS.employeesView) ?? 'kanban')
   const [search, setSearch] = useState('')
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [openId, setOpenId] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    storage.setRaw(STORAGE_KEYS.employeesView, view)
+  }, [view])
 
   useEffect(() => {
     let cancelled = false
@@ -187,7 +193,7 @@ export default function EmployeesList() {
     }
   }, [search, notify, reloadKey])
 
-  const openEmployee = (employee) => navigate(`/employees/${employee._id}`)
+  const openEmployee = (employee) => setOpenId(employee._id)
 
   async function handleDelete() {
     try {
@@ -211,7 +217,7 @@ export default function EmployeesList() {
         actions={
           <>
             <ViewToggle view={view} onChange={setView} />
-            <Button iconLeft={<Plus size={16} />} onClick={() => navigate('/employees/new')}>
+            <Button iconLeft={<Plus size={16} />} onClick={() => setOpenId('new')}>
               New
             </Button>
           </>
@@ -275,6 +281,17 @@ export default function EmployeesList() {
           ))}
         </div>
       )}
+
+      {openId ? (
+        <EmployeeDrawer
+          employeeId={openId}
+          onClose={() => setOpenId(null)}
+          onSaved={() => {
+            setOpenId(null)
+            setReloadKey((k) => k + 1)
+          }}
+        />
+      ) : null}
 
       <DeleteConfirmModal
         isOpen={Boolean(pendingDelete)}

@@ -44,6 +44,18 @@ export const contractsApi = {
 }
 
 export const salaryStructuresApi = {
-  list: () => api.get('/salary-structures'),
+  list: (params) => api.get(`/salary-structures${query(params)}`),
+  get: (id) => api.get(`/salary-structures/${id}`),
   create: (body) => api.post('/salary-structures', body),
+  update: (id, body) => api.patch(`/salary-structures/${id}`, body),
+  remove: (id) => api.delete(`/salary-structures/${id}`),
+  preview: (id, wage) => api.get(`/salary-rules/preview/${id}${query({ wage })}`),
+}
+
+export const salaryRulesApi = {
+  list: (params) => api.get(`/salary-rules${query(params)}`),
+  get: (id) => api.get(`/salary-rules/${id}`),
+  create: (body) => api.post('/salary-rules', body),
+  update: (id, body) => api.patch(`/salary-rules/${id}`, body),
+  remove: (id) => api.delete(`/salary-rules/${id}`),
 }

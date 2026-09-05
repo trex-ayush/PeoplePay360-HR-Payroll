@@ -1,22 +1,23 @@
 import { Router } from 'express'
 import { requireAuth, requireRole } from '../middleware/auth.js'
-import { PAYROLL_CONFIG_ROLES } from '../config/constants.js'
+import { PAYROLL_ROLES, PAYROLL_CONFIG_ROLES } from '../config/constants.js'
 import {
   list,
   getOne,
   create,
   update,
   remove,
-} from '../controllers/salaryStructureController.js'
+  preview,
+} from '../controllers/salaryRuleController.js'
 
 const router = Router()
 const config = requireRole(...PAYROLL_CONFIG_ROLES)
 
-router.use(requireAuth)
+// HR Payroll User gets read-only access to rules; only the manager may edit.
+router.use(requireAuth, requireRole(...PAYROLL_ROLES))
 
-// Read is open to anyone signed in — the contract form needs the list.
-// Editing is HR Payroll Manager only, per the spec's role table.
 router.get('/', list)
+router.get('/preview/:structureId', preview)
 router.get('/:id', getOne)
 router.post('/', config, create)
 router.patch('/:id', config, update)

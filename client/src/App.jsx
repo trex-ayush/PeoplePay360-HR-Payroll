@@ -7,14 +7,14 @@ import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
 import AccessMatrix from '@/pages/AccessMatrix'
 import EmployeesList from '@/pages/employees/EmployeesList'
-import EmployeeForm from '@/pages/employees/EmployeeForm'
 import SchedulesList from '@/pages/schedules/SchedulesList'
-import ScheduleForm from '@/pages/schedules/ScheduleForm'
 import DepartmentsList from '@/pages/departments/DepartmentsList'
 import ContractsList from '@/pages/contracts/ContractsList'
-import ContractForm from '@/pages/contracts/ContractForm'
+import StructuresList from '@/pages/salary/StructuresList'
+import StructureDetail from '@/pages/salary/StructureDetail'
 
 const HR = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
+const PAYROLL = ['hr_payroll_user', 'hr_payroll_manager', 'admin']
 
 function PublicOnly({ children }) {
   const { user, loading } = useAuth()
@@ -53,26 +53,10 @@ export default function App() {
           }
         />
         <Route
-          path="/employees/:id"
-          element={
-            <ProtectedRoute roles={HR}>
-              <EmployeeForm />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/contracts"
           element={
             <ProtectedRoute roles={HR}>
               <ContractsList />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/contracts/:id"
-          element={
-            <ProtectedRoute roles={HR}>
-              <ContractForm />
             </ProtectedRoute>
           }
         />
@@ -92,11 +76,20 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
-          path="/working-schedules/:id"
+          path="/salary-structures"
           element={
-            <ProtectedRoute roles={HR}>
-              <ScheduleForm />
+            <ProtectedRoute roles={PAYROLL}>
+              <StructuresList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/salary-structures/:id"
+          element={
+            <ProtectedRoute roles={PAYROLL}>
+              <StructureDetail />
             </ProtectedRoute>
           }
         />

@@ -1,16 +1,48 @@
-import { useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useClickOutside } from '@/hooks/useClickOutside'
 import { cn } from '@/utils/cn'
 
+const GAP = 8
+
 export function Dropdown({ trigger, children, align = 'left', className }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const [position, setPosition] = useState({})
+  const triggerRef = useRef(null)
+  const menuRef = useRef(null)
 
-  useClickOutside(ref, () => setOpen(false))
+  useClickOutside([triggerRef, menuRef], () => setOpen(false))
+
+  // The menu lives in a portal so table and card overflow cannot clip it, which
+  // means its position has to be measured off the trigger by hand.
+  useLayoutEffect(() => {
+    if (!open) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    const height = menuRef.current.offsetHeight
+    const openUp = rect.bottom + GAP + height > window.innerHeight
+
+    setPosition({
+      top: openUp ? rect.top - GAP - height : rect.bottom + GAP,
+      ...(align === 'right' ? { right: window.innerWidth - rect.right } : { left: rect.left }),
+    })
+  }, [open, align])
+
+  // A fixed menu cannot follow the page, so any scroll or resize dismisses it.
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [open])
 
   return (
-    <div ref={ref} className="relative inline-block">
+    <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
@@ -19,22 +51,27 @@ export function Dropdown({ trigger, children, align = 'left', className }) {
       >
         {trigger}
       </button>
-      {open ? (
-        <div
-          role="menu"
-          onClick={() => setOpen(false)}
-          className={cn(
-            'absolute z-50 mt-2 min-w-[180px] overflow-hidden animate-fade-in',
-            'rounded-lg border border-neutral-200 bg-white shadow-lg',
-            'dark:border-neutral-700 dark:bg-neutral-800',
-            align === 'right' ? 'right-0' : 'left-0',
-            className
-          )}
-        >
-          {children}
-        </div>
-      ) : null}
-    </div>
+
+      {open
+        ? createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              style={position}
+              onClick={() => setOpen(false)}
+              className={cn(
+                'fixed z-50 min-w-[180px] overflow-hidden animate-fade-in',
+                'rounded-lg border border-neutral-200 bg-white shadow-lg',
+                'dark:border-neutral-700 dark:bg-neutral-800',
+                className
+              )}
+            >
+              {children}
+            </div>,
+            document.body
+          )
+        : null}
+    </>
   )
 }
 

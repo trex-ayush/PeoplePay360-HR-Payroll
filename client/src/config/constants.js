@@ -2,6 +2,7 @@ export const STORAGE_KEYS = {
   authToken: 'peoplepay360.token',
   theme: 'app-theme',
   sidebarCollapsed: 'sidebar-collapsed',
+  employeesView: 'employees-view',
 }
 
 export const ROUTES = {
@@ -37,3 +38,17 @@ export const ROLE_LABELS = {
   hr_payroll_manager: 'HR Payroll Manager',
   admin: 'Admin',
 }
+
+export const RULE_CATEGORIES = [
+  { value: 'BASIC', label: 'Basic', tone: 'info' },
+  { value: 'ALW', label: 'Allowance', tone: 'success' },
+  { value: 'GROSS', label: 'Gross', tone: 'primary' },
+  { value: 'DED', label: 'Deduction', tone: 'warning' },
+  { value: 'NET', label: 'Net', tone: 'purple' },
+]
+
+export const COMPUTE_TYPES = [
+  { value: 'fixed', label: 'Fixed Amount' },
+  { value: 'percent', label: 'Percentage' },
+  { value: 'formula', label: 'Formula' },
+]

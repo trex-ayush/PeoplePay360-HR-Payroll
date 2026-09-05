@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, X } from 'lucide-react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge, Button, DataTable, DeleteConfirmModal, EmptyState, Input } from '@/components/ui'
 import { RowActions } from '@/components/RowActions'
+import { ContractDrawer } from './ContractDrawer'
 import { contractsApi, employeesApi } from '@/api/hr'
+import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { getErrorMessage } from '@/utils/errorUtils'
 import { CONTRACT_STATES } from '@/config/constants'
 
 const formatDate = (value) =>
@@ -71,7 +74,7 @@ const buildColumns = ({ onEdit, onDelete }) => [
 
 export default function ContractsList() {
   usePageTitle('Contracts')
-  const navigate = useNavigate()
+  const notify = useNotify()
   const [params, setParams] = useSearchParams()
   const employeeId = params.get('employee')
 
@@ -82,6 +85,7 @@ export default function ContractsList() {
   const [error, setError] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [openId, setOpenId] = useState(null)
 
   useEffect(() => {
     if (!employeeId) {
@@ -133,7 +137,7 @@ export default function ContractsList() {
         title="Contracts"
         description="Contract history is kept. Payroll uses the running contract that covers the period."
         actions={
-          <Button iconLeft={<Plus size={16} />} onClick={() => navigate('/contracts/new')}>
+          <Button iconLeft={<Plus size={16} />} onClick={() => setOpenId('new')}>
             New
           </Button>
         }
@@ -163,14 +167,14 @@ export default function ContractsList() {
 
       <DataTable
         columns={buildColumns({
-          onEdit: (row) => navigate(`/contracts/${row._id}`),
+          onEdit: (row) => setOpenId(row._id),
           onDelete: setPendingDelete,
         })}
         rows={contracts}
         rowKey={(row) => row._id}
         loading={loading}
         error={error}
-        onRowClick={(row) => navigate(`/contracts/${row._id}`)}
+        onRowClick={(row) => setOpenId(row._id)}
         rounded="lg"
         emptyState={
           <EmptyState
@@ -188,6 +192,18 @@ export default function ContractsList() {
         description="The salary agreed in this contract stops being available to payroll for its period."
         confirmValue={pendingDelete?.reference ?? ''}
       />
+
+      {openId ? (
+        <ContractDrawer
+          contractId={openId}
+          presetEmployee={employeeId}
+          onClose={() => setOpenId(null)}
+          onSaved={() => {
+            setOpenId(null)
+            setReloadKey((k) => k + 1)
+          }}
+        />
+      ) : null}
     </PageContainer>
   )
 }
