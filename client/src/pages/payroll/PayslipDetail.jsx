@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Badge, Card, CardBody, CardHeader, ErrorState, Skeleton } from '@/components/ui'
+import { Printer } from 'lucide-react'
+import { Badge, Button, Card, CardBody, CardHeader, ErrorState, Skeleton } from '@/components/ui'
 import { payslipsApi } from '@/api/hr'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { getErrorMessage } from '@/utils/errorUtils'
@@ -26,6 +27,7 @@ function Detail({ label, children }) {
 
 export default function PayslipDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
 
   const [payslip, setPayslip] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -72,6 +74,14 @@ export default function PayslipDetail() {
       <PageHeader
         title={`Payslip · ${payslip.employee?.name}`}
         description="Detailed salary computation for one employee."
+        actions={
+          <Button
+            iconLeft={<Printer size={14} />}
+            onClick={() => navigate(`/payslips/${id}/print`)}
+          >
+            Print Payslip
+          </Button>
+        }
       />
 
       <Card className="mb-6">

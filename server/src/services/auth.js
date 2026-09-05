@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
 import { User } from '../models/User.js'
+import { Employee } from '../models/Employee.js'
 import { httpError } from '../utils/asyncHandler.js'
 
 export function signToken(user) {
@@ -19,11 +20,8 @@ export async function login({ email, password }) {
   return { token: signToken(user), user: user.toJSON() }
 }
 
-/**
- * The only way an admin comes into existence: either the caller is already an
- * admin, or they present ADMIN_SECRET. Everyone else is created by an admin
- * through User Management, so nobody can assign themselves a role.
- */
+// The only way an admin comes into existence: either the caller is already an
+// admin, or they present ADMIN_SECRET, so nobody can assign themselves a role.
 export async function createAdmin({ name, email, password, secret }, actor) {
   if (!actor?.hasRole('admin')) {
     if (actor) throw httpError(403, 'Only an admin can create another admin')
@@ -42,6 +40,30 @@ export async function createAdmin({ name, email, password, secret }, actor) {
   }
 
   const user = await User.create({ name, email, password, roles: ['admin'] })
+
+  return { user: user.toJSON() }
+}
+
+export async function listUsers() {
+  const users = await User.find()
+    .select('name email roles employeeId')
+    .populate({ path: 'employeeId', select: 'name code' })
+    .sort({ name: 1 })
+
+  return { users }
+}
+
+// Attendance and "my own records" need to know which employee is signing in, and
+// nothing else creates that link.
+export async function linkEmployee(userId, employeeId) {
+  const employee = await Employee.findById(employeeId)
+  if (!employee) throw httpError(404, 'Employee not found')
+
+  const taken = await User.findOne({ employeeId, _id: { $ne: userId } })
+  if (taken) throw httpError(409, `${employee.name} is already linked to ${taken.email}`)
+
+  const user = await User.findByIdAndUpdate(userId, { employeeId }, { new: true })
+  if (!user) throw httpError(404, 'User not found')
 
   return { user: user.toJSON() }
 }

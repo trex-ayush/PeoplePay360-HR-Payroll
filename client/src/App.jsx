@@ -16,9 +16,11 @@ import PayrunsList from '@/pages/payroll/PayrunsList'
 import PayrunDetail from '@/pages/payroll/PayrunDetail'
 import PayslipsList from '@/pages/payroll/PayslipsList'
 import PayslipDetail from '@/pages/payroll/PayslipDetail'
+import PayslipPrint from '@/pages/payroll/PayslipPrint'
 import TimeOffRequestsList from '@/pages/timeoff/RequestsList'
 import AllocationsList from '@/pages/timeoff/AllocationsList'
 import TimeOffTypesList from '@/pages/timeoff/TypesList'
+import AttendanceList from '@/pages/attendance/AttendanceList'
 
 const HR = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
 const PAYROLL = ['hr_payroll_user', 'hr_payroll_manager', 'admin']
@@ -38,6 +40,15 @@ export default function App() {
           <PublicOnly>
             <Login />
           </PublicOnly>
+        }
+      />
+
+      <Route
+        path="/payslips/:id/print"
+        element={
+          <ProtectedRoute roles={PAYROLL}>
+            <PayslipPrint />
+          </ProtectedRoute>
         }
       />
 
@@ -92,6 +103,15 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/attendance"
+          element={
+            <ProtectedRoute>
+              <AttendanceList />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/time-off/requests"
           element={

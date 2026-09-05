@@ -69,6 +69,7 @@ export const payrunsApi = {
   validate: (id) => api.post(`/payruns/${id}/validate`),
   markPaid: (id) => api.post(`/payruns/${id}/mark-paid`),
   remove: (id) => api.delete(`/payruns/${id}`),
+  warnings: (id) => api.get(`/payruns/${id}/warnings`),
 }
 
 export const payslipsApi = {
@@ -102,4 +103,19 @@ export const timeOffRequestsApi = {
   approve: (id, body) => api.post(`/timeoff/requests/${id}/approve`, body),
   refuse: (id) => api.post(`/timeoff/requests/${id}/refuse`),
   remove: (id) => api.delete(`/timeoff/requests/${id}`),
+}
+
+export const attendanceApi = {
+  list: (params) => api.get(`/attendance${query(params)}`),
+  today: () => api.get('/attendance/today'),
+  checkIn: () => api.post('/attendance/check-in'),
+  checkOut: () => api.post('/attendance/check-out'),
+  get: (id) => api.get(`/attendance/${id}`),
+  create: (body) => api.post('/attendance', body),
+  update: (id, body) => api.patch(`/attendance/${id}`, body),
+  remove: (id) => api.delete(`/attendance/${id}`),
+}
+
+export const dashboardApi = {
+  summary: (params) => api.get(`/dashboard${query(params)}`),
 }

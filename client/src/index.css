@@ -9,6 +9,29 @@ body {
   font-family: var(--font-sans);
 }
 
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -55,5 +78,18 @@ body {
   }
   to {
     transform: translateY(0);
+  }
+}
+
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  /* The print route renders its own sheet; the app chrome never reaches paper. */
+  html,
+  body {
+    background: #fff;
+    color: #000;
   }
 }

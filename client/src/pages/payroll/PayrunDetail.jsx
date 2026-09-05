@@ -9,11 +9,13 @@ import {
   Card,
   CardBody,
   CardHeader,
+  ConfirmModal,
   DataTable,
   EmptyState,
   ErrorState,
   Skeleton,
 } from '@/components/ui'
+import { WarningsPanel } from '@/components/WarningsPanel'
 import { payrunsApi } from '@/api/hr'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
@@ -102,14 +104,22 @@ export default function PayrunDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [running, setRunning] = useState('')
+  const [warnings, setWarnings] = useState([])
+  const [warningsLoading, setWarningsLoading] = useState(true)
+  const [confirmValidate, setConfirmValidate] = useState(false)
 
   usePageTitle(payrun?.name ?? 'Payrun')
 
   const load = useCallback(async () => {
     try {
-      const { payrun, payslips } = await payrunsApi.get(id)
+      const [{ payrun, payslips }, { warnings }] = await Promise.all([
+        payrunsApi.get(id),
+        payrunsApi.warnings(id),
+      ])
       setPayrun(payrun)
       setPayslips(payslips)
+      setWarnings(warnings)
+      setWarningsLoading(false)
       setError(null)
     } catch (err) {
       setError(err)
@@ -184,7 +194,11 @@ export default function PayrunDetail() {
               iconLeft={<BadgeCheck size={14} />}
               disabled={payrun.state !== 'computed'}
               loading={running === 'validate'}
-              onClick={() => run('validate', payrunsApi.validate, () => 'Payrun validated')}
+              onClick={() =>
+                warnings.length
+                  ? setConfirmValidate(true)
+                  : run('validate', payrunsApi.validate, () => 'Payrun validated')
+              }
             >
               Validate
             </Button>
@@ -199,6 +213,8 @@ export default function PayrunDetail() {
           </>
         }
       />
+
+      <WarningsPanel warnings={warnings} loading={warningsLoading} />
 
       <Card className="mb-6">
         <CardBody>
@@ -247,6 +263,15 @@ export default function PayrunDetail() {
           />
         </CardBody>
       </Card>
+
+      <ConfirmModal
+        isOpen={confirmValidate}
+        onClose={() => setConfirmValidate(false)}
+        onConfirm={() => run('validate', payrunsApi.validate, () => 'Payrun validated')}
+        title="Validate with open warnings?"
+        description={`${warnings.length} issues are still listed on this payrun. Validating locks it, and the payslips can no longer be recomputed.`}
+        confirmLabel="Validate anyway"
+      />
     </PageContainer>
   )
 }

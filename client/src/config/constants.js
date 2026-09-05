@@ -86,3 +86,10 @@ export const ALLOCATION_MODES = [
   { value: 'fixed', label: 'Fixed grant' },
   { value: 'accrual', label: 'Accrual' },
 ]
+
+export const ATTENDANCE_STATUSES = [
+  { value: 'present', label: 'Present', tone: 'success' },
+  { value: 'late', label: 'Late', tone: 'warning' },
+  { value: 'overtime', label: 'Overtime', tone: 'info' },
+  { value: 'absent', label: 'Absent', tone: 'danger' },
+]

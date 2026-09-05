@@ -19,9 +19,11 @@ export function Navbar() {
   return (
     <header className="h-14 sm:h-16 flex items-center gap-2 px-3 bg-white dark:bg-neutral-800 shadow-[0_1px_0_0_#e5e5e5] dark:shadow-[0_1px_0_0_#404040] sticky top-0 z-[55] transition-colors duration-200">
       <Link to={ROUTES.dashboard} className="flex items-center gap-3 group flex-shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-primary-500 flex items-center justify-center text-white font-bold transition-transform duration-200 group-hover:scale-105">
-          P
-        </div>
+        <img
+          src="/logo.png"
+          alt=""
+          className="h-8 w-auto transition-transform duration-200 group-hover:scale-105"
+        />
         <span className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 hidden sm:inline">
           {env.appName}
         </span>

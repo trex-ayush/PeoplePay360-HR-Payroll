@@ -48,3 +48,8 @@ export const ALLOCATION_MODES = ['fixed', 'accrual']
 export const ALLOCATION_STATES = ['draft', 'approved', 'refused']
 
 export const REQUEST_STATES = ['draft', 'approved', 'refused']
+
+export const ATTENDANCE_STATUSES = ['present', 'late', 'absent', 'overtime']
+
+// Minutes past the scheduled start that still count as on time.
+export const LATE_GRACE_MINUTES = 15

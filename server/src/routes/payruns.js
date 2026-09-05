@@ -10,6 +10,7 @@ import {
   markPaid,
   remove,
   eligibleEmployees,
+  warnings,
 } from '../controllers/payrunController.js'
 
 const router = Router()
@@ -21,6 +22,7 @@ router.get('/eligible-employees', eligibleEmployees)
 
 router.get('/', list)
 router.get('/:id', getOne)
+router.get('/:id/warnings', warnings)
 router.post('/', create)
 router.post('/:id/compute', compute)
 router.post('/:id/validate', validate)

@@ -5,6 +5,7 @@ import { findContractForPeriod } from '../services/contract.js'
 import { computePayslipLines, round2 } from '../services/payroll.js'
 import { unpaidDaysInPeriod } from '../services/leave.js'
 import { findEligibleEmployees } from '../services/payrun.js'
+import { getPayrunWarnings } from '../services/warnings.js'
 import { workingDaysBetween } from '../services/schedule.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
 
@@ -78,6 +79,13 @@ export const getOne = asyncHandler(async (req, res) => {
     .sort({ createdAt: 1 })
 
   res.json({ payrun, payslips })
+})
+
+export const warnings = asyncHandler(async (req, res) => {
+  const payrun = await Payrun.findById(req.params.id)
+  if (!payrun) throw httpError(404, 'Payrun not found')
+
+  res.json({ warnings: await getPayrunWarnings(payrun) })
 })
 
 export const create = asyncHandler(async (req, res) => {
