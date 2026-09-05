@@ -1,51 +1,40 @@
-import { useEffect, useState } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { useAuth } from '@/context/AuthContext'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { AppShell } from '@/components/layout/AppShell'
+import { ROUTES } from '@/config/constants'
+import Login from '@/pages/Login'
+import Dashboard from '@/pages/Dashboard'
+
+function PublicOnly({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  return user ? <Navigate to={ROUTES.dashboard} replace /> : children
+}
 
 export default function App() {
-  const [health, setHealth] = useState({ state: 'checking' })
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((res) => {
-        if (!res.ok) throw new Error(`API responded ${res.status}`)
-        return res.json()
-      })
-      .then((data) => setHealth({ state: 'ok', data }))
-      .catch((err) => setHealth({ state: 'error', message: err.message }))
-  }, [])
-
   return (
-    <main className="shell">
-      <h1>PeoplePay360</h1>
-      <p className="tagline">HR &amp; Payroll operations</p>
+    <Routes>
+      <Route
+        path={ROUTES.login}
+        element={
+          <PublicOnly>
+            <Login />
+          </PublicOnly>
+        }
+      />
 
-      <section className="status">
-        <h2>API connection</h2>
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppShell />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Dashboard />} />
+      </Route>
 
-        {health.state === 'checking' && <p>Checking…</p>}
-
-        {health.state === 'ok' && (
-          <dl>
-            <div>
-              <dt>Service</dt>
-              <dd>{health.data.service}</dd>
-            </div>
-            <div>
-              <dt>Database</dt>
-              <dd>{health.data.ok ? 'connected' : 'not connected'}</dd>
-            </div>
-            <div>
-              <dt>Uptime</dt>
-              <dd>{health.data.uptime}s</dd>
-            </div>
-          </dl>
-        )}
-
-        {health.state === 'error' && (
-          <p className="error">
-            {health.message} — start the API with <code>npm run dev</code> in <code>server/</code>.
-          </p>
-        )}
-      </section>
-    </main>
+      <Route path="*" element={<Navigate to={ROUTES.dashboard} replace />} />
+    </Routes>
   )
 }

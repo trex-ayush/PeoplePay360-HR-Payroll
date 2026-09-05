@@ -3,6 +3,8 @@ import { connectDB } from './config/db.js'
 import { env } from './config/env.js'
 
 try {
+  if (!env.jwtSecret) throw new Error('JWT_SECRET is not set. Add it to server/.env')
+
   await connectDB()
   createApp().listen(env.port, () => {
     console.log(`[api] listening on http://localhost:${env.port}`)
