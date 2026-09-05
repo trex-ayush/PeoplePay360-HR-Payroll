@@ -9,6 +9,7 @@ export function Sidebar({ sections }) {
     <aside
       className={cn(
         'hidden lg:flex flex-col flex-shrink-0 transition-all duration-200',
+        'sticky self-start top-14 sm:top-16 h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)]',
         'bg-white dark:bg-neutral-800 border-r border-neutral-200 dark:border-neutral-700',
         sidebarCollapsed ? 'w-16' : 'w-64'
       )}

@@ -8,6 +8,7 @@ import {
   Home,
   Layers,
   Receipt,
+  Building2,
   Users,
   Wallet,
 } from 'lucide-react'
@@ -30,6 +31,7 @@ const SECTIONS = [
     items: [
       { to: '/employees', label: 'Employees', roles: HR, icon: <Users {...iconProps} /> },
       { to: '/contracts', label: 'Contracts', roles: HR, icon: <FileText {...iconProps} /> },
+      { to: '/departments', label: 'Departments', roles: HR, icon: <Building2 {...iconProps} /> },
       {
         to: '/working-schedules',
         label: 'Working Schedules',

@@ -1,9 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
-import { Button } from '@/components/ui'
+import { Avatar, Dropdown, DropdownItem, DropdownDivider } from '@/components/ui'
 import { ROUTES } from '@/config/constants'
 import { env } from '@/config/env'
+import { cn } from '@/utils/cn'
 
 const ROLE_LABELS = {
   employee: 'Employee',
@@ -15,7 +16,7 @@ const ROLE_LABELS = {
 
 export function Navbar() {
   const { user, logout } = useAuth()
-  const { isDark, toggleTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -36,40 +37,76 @@ export function Navbar() {
 
       <div className="flex-1" />
 
-      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-        <button
-          type="button"
-          onClick={toggleTheme}
-          aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-          className="flex items-center justify-center w-9 h-9 rounded-lg text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700"
-        >
-          {isDark ? (
-            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-              <circle cx="12" cy="12" r="4" />
-              <path strokeLinecap="round" d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+      <Dropdown
+        align="right"
+        className="w-64"
+        trigger={
+          <span className="flex items-center gap-3 px-1.5 sm:px-3 py-1.5 sm:py-2 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors duration-200">
+            <Avatar name={user.name} size="md" />
+            <span className="hidden sm:block text-sm font-medium text-neutral-700 dark:text-neutral-300 max-w-[140px] truncate">
+              {user.name}
+            </span>
+            <svg
+              className="w-4 h-4 text-neutral-400 hidden sm:block"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
-          ) : (
-            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
-            </svg>
-          )}
-        </button>
-
-        <div className="hidden sm:block text-right leading-tight">
-          <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{user.name}</p>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          </span>
+        }
+      >
+        <div className="px-3 py-2 border-b border-neutral-100 dark:border-neutral-700">
+          <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">
+            {user.name}
+          </p>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">{user.email}</p>
+          <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500 truncate">
             {user.roles.map((role) => ROLE_LABELS[role]).join(', ')}
           </p>
         </div>
 
-        <div className="w-9 h-9 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-sm font-semibold text-neutral-700 dark:text-neutral-200">
-          {user.name.charAt(0).toUpperCase()}
+        {/* panel closes on any click inside it; theme switching should not */}
+        <div
+          className="px-3 py-2 border-b border-neutral-100 dark:border-neutral-700"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <p className="text-[10px] uppercase tracking-wider text-neutral-400 mb-2">Theme</p>
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-neutral-100 dark:bg-neutral-700/50">
+            <ThemeOption
+              active={theme === 'light'}
+              onSelect={() => setTheme('light')}
+              label="Light"
+            />
+            <ThemeOption active={theme === 'dark'} onSelect={() => setTheme('dark')} label="Dark" />
+          </div>
         </div>
 
-        <Button variant="secondary" size="sm" onClick={handleLogout}>
+        <DropdownDivider />
+        <DropdownItem danger onSelect={handleLogout}>
           Sign out
-        </Button>
-      </div>
+        </DropdownItem>
+      </Dropdown>
     </header>
+  )
+}
+
+function ThemeOption({ active, label, onSelect }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        'flex-1 px-2 py-1 text-xs font-medium rounded-md transition-colors',
+        active
+          ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 shadow-sm'
+          : 'text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200'
+      )}
+    >
+      {label}
+    </button>
   )
 }

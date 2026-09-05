@@ -1,19 +1,6 @@
 import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
-
-export const ROLES = [
-  'employee',
-  'hr_manager',
-  'hr_payroll_user',
-  'hr_payroll_manager',
-  'admin',
-]
-
-// Each tier includes everything below it, as the spec describes them
-// ("All HR Manager permissions plus...", "All HR Payroll User permissions with...").
-export const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
-export const PAYROLL_ROLES = ['hr_payroll_user', 'hr_payroll_manager', 'admin']
-export const PAYROLL_CONFIG_ROLES = ['hr_payroll_manager', 'admin']
+import { ROLES } from '../config/constants.js'
 
 const userSchema = new mongoose.Schema(
   {
