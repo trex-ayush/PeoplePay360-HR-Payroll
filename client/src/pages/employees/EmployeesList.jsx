@@ -3,14 +3,24 @@ import { useNavigate } from 'react-router-dom'
 import { LayoutGrid, List as ListIcon, Plus, Search } from 'lucide-react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { Badge, Button, Card, DataTable, EmptyState, Input, Skeleton } from '@/components/ui'
+import {
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  DeleteConfirmModal,
+  EmptyState,
+  Input,
+  Skeleton,
+} from '@/components/ui'
+import { RowActions } from '@/components/RowActions'
 import { employeesApi } from '@/api/hr'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { cn } from '@/utils/cn'
 
-const columns = [
+const buildColumns = ({ onEdit, onDelete }) => [
   {
     key: 'name',
     header: 'Employee',
@@ -43,6 +53,18 @@ const columns = [
         </Badge>
       ),
   },
+  {
+    key: 'actions',
+    header: '',
+    width: 60,
+    align: 'right',
+    cell: (row) => (
+      <RowActions
+        onEdit={() => onEdit(row)}
+        onDelete={() => onDelete(row)}
+      />
+    ),
+  },
 ]
 
 function Initials({ name }) {
@@ -60,7 +82,7 @@ function Initials({ name }) {
   )
 }
 
-function KanbanCard({ employee, onOpen }) {
+function KanbanCard({ employee, onOpen, onDelete }) {
   return (
     <Card interactive onClick={onOpen} className="p-4">
       <div className="flex items-start gap-3">
@@ -75,7 +97,7 @@ function KanbanCard({ employee, onOpen }) {
           </p>
         </div>
       </div>
-      <div className="mt-3">
+      <div className="mt-3 flex items-center justify-between">
         {employee.active ? (
           <Badge tone="success" size="sm" dot>
             Active
@@ -85,6 +107,10 @@ function KanbanCard({ employee, onOpen }) {
             Archived
           </Badge>
         )}
+        <RowActions
+          onEdit={onOpen}
+          onDelete={onDelete}
+        />
       </div>
     </Card>
   )
@@ -129,13 +155,18 @@ export default function EmployeesList() {
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     const timer = setTimeout(async () => {
       setLoading(true)
       try {
-        const { employees } = await employeesApi.list({ search })
+        const { employees } = await employeesApi.list({
+          search,
+          active: 'all',
+        })
         if (!cancelled) {
           setEmployees(employees)
           setError(null)
@@ -154,9 +185,23 @@ export default function EmployeesList() {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [search, notify])
+  }, [search, notify, reloadKey])
 
   const openEmployee = (employee) => navigate(`/employees/${employee._id}`)
+
+  async function handleDelete() {
+    try {
+      const { managerCleared } = await employeesApi.remove(pendingDelete._id)
+      notify.success(
+        managerCleared
+          ? `${pendingDelete.name} deleted · ${managerCleared} employee${managerCleared > 1 ? 's' : ''} left without a manager`
+          : `${pendingDelete.name} deleted`
+      )
+      setReloadKey((k) => k + 1)
+    } catch (err) {
+      notify.error(getErrorMessage(err))
+    }
+  }
 
   return (
     <PageContainer>
@@ -173,18 +218,23 @@ export default function EmployeesList() {
         }
       />
 
-      <div className="mb-4 max-w-sm">
-        <Input
-          placeholder="Search employees…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          iconLeft={<Search size={16} />}
-        />
+      <div className="mb-4 flex flex-wrap items-center gap-4">
+        <div className="max-w-sm flex-1">
+          <Input
+            placeholder="Search employees…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            iconLeft={<Search size={16} />}
+          />
+        </div>
       </div>
 
       {view === 'list' ? (
         <DataTable
-          columns={columns}
+          columns={buildColumns({
+            onEdit: openEmployee,
+            onDelete: setPendingDelete,
+          })}
           rows={employees}
           rowKey={(row) => row._id}
           loading={loading}
@@ -220,10 +270,20 @@ export default function EmployeesList() {
               key={employee._id}
               employee={employee}
               onOpen={() => openEmployee(employee)}
+              onDelete={() => setPendingDelete(employee)}
             />
           ))}
         </div>
       )}
+
+      <DeleteConfirmModal
+        isOpen={Boolean(pendingDelete)}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={handleDelete}
+        title="Delete employee?"
+        description="Contracts attached to this employee will block the delete. Anyone reporting to them is simply left without a manager."
+        confirmValue={pendingDelete?.name ?? ''}
+      />
     </PageContainer>
   )
 }

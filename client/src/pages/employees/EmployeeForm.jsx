@@ -109,7 +109,11 @@ export default function EmployeeForm() {
         if (cancelled) return
         setOptions({ departments, schedules, employees })
 
-        if (!isNew) {
+        if (isNew) {
+          const { code } = await employeesApi.nextCode()
+          if (cancelled) return
+          reset({ ...EMPTY, code })
+        } else {
           const { employee } = await employeesApi.get(id)
           if (cancelled) return
           reset({
@@ -147,7 +151,7 @@ export default function EmployeeForm() {
       if (isNew) {
         const { employee } = await employeesApi.create(payload)
         notify.success(`${employee.name} created`)
-        navigate(`/employees/${employee._id}`, { replace: true })
+        navigate('/employees')
       } else {
         await employeesApi.update(id, payload)
         notify.success('Changes saved')
@@ -214,8 +218,14 @@ export default function EmployeeForm() {
           </CardHeader>
           <CardBody>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <FormField label="Employee Code" htmlFor="code" required error={errors.code?.message}>
-                <Input id="code" placeholder="EMP001" {...register('code')} />
+              <FormField
+                label="Employee Code"
+                htmlFor="code"
+                error={errors.code?.message}
+                required
+                hint={isNew ? 'Suggested next code — change it if you need to' : undefined}
+              >
+                <Input id="code" {...register('code')} />
               </FormField>
 
               <FormField label="Name" htmlFor="name" required error={errors.name?.message}>

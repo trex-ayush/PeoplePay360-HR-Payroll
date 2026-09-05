@@ -23,3 +23,17 @@ export const SCHEDULE_TYPES = [
   { value: 'shift', label: 'Shift' },
   { value: 'flexible', label: 'Flexible' },
 ]
+
+export const CONTRACT_STATES = [
+  { value: 'draft', label: 'Draft', tone: 'neutral' },
+  { value: 'running', label: 'Running', tone: 'success' },
+  { value: 'expired', label: 'Expired', tone: 'warning' },
+]
+
+export const ROLE_LABELS = {
+  employee: 'Employee',
+  hr_manager: 'HR Manager',
+  hr_payroll_user: 'HR Payroll User',
+  hr_payroll_manager: 'HR Payroll Manager',
+  admin: 'Admin',
+}

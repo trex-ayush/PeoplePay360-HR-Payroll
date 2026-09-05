@@ -11,16 +11,20 @@ const query = (params) => {
 
 export const employeesApi = {
   list: (params) => api.get(`/employees${query(params)}`),
+  nextCode: () => api.get('/employees/next-code'),
   get: (id) => api.get(`/employees/${id}`),
   create: (body) => api.post('/employees', body),
   update: (id, body) => api.patch(`/employees/${id}`, body),
-  archive: (id) => api.delete(`/employees/${id}`),
+  remove: (id) => api.delete(`/employees/${id}`),
+  related: (id) => api.get(`/employees/${id}/related`),
 }
 
 export const departmentsApi = {
-  list: () => api.get('/departments'),
+  list: (params) => api.get(`/departments${query(params)}`),
   create: (body) => api.post('/departments', body),
   update: (id, body) => api.patch(`/departments/${id}`, body),
+  remove: (id) => api.delete(`/departments/${id}`),
+  related: (id) => api.get(`/departments/${id}/related`),
 }
 
 export const schedulesApi = {
@@ -28,4 +32,18 @@ export const schedulesApi = {
   get: (id) => api.get(`/working-schedules/${id}`),
   create: (body) => api.post('/working-schedules', body),
   update: (id, body) => api.patch(`/working-schedules/${id}`, body),
+}
+
+export const contractsApi = {
+  list: (params) => api.get(`/contracts${query(params)}`),
+  nextReference: (year) => api.get(`/contracts/next-reference${query({ year })}`),
+  get: (id) => api.get(`/contracts/${id}`),
+  create: (body) => api.post('/contracts', body),
+  update: (id, body) => api.patch(`/contracts/${id}`, body),
+  remove: (id) => api.delete(`/contracts/${id}`),
+}
+
+export const salaryStructuresApi = {
+  list: () => api.get('/salary-structures'),
+  create: (body) => api.post('/salary-structures', body),
 }

@@ -25,3 +25,5 @@ export const DAYS = [
   'Saturday',
   'Sunday',
 ]
+
+export const CONTRACT_STATES = ['draft', 'running', 'expired']

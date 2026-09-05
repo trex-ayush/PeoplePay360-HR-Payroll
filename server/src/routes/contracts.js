@@ -6,17 +6,17 @@ import {
   getOne,
   create,
   update,
+  nextReference,
   remove,
-  nextCode,
-} from '../controllers/employeeController.js'
+} from '../controllers/contractController.js'
 
 const router = Router()
 const hr = requireRole(...HR_ROLES)
 
 router.use(requireAuth, hr)
 
-// Must sit above /:id, or "next-code" is read as an employee id.
-router.get('/next-code', nextCode)
+// Must sit above /:id, or "next-reference" is read as a contract id.
+router.get('/next-reference', nextReference)
 
 router.get('/', list)
 router.get('/:id', getOne)

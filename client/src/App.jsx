@@ -5,11 +5,14 @@ import { AppShell } from '@/components/layout/AppShell'
 import { ROUTES } from '@/config/constants'
 import Login from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
+import AccessMatrix from '@/pages/AccessMatrix'
 import EmployeesList from '@/pages/employees/EmployeesList'
 import EmployeeForm from '@/pages/employees/EmployeeForm'
 import SchedulesList from '@/pages/schedules/SchedulesList'
 import ScheduleForm from '@/pages/schedules/ScheduleForm'
 import DepartmentsList from '@/pages/departments/DepartmentsList'
+import ContractsList from '@/pages/contracts/ContractsList'
+import ContractForm from '@/pages/contracts/ContractForm'
 
 const HR = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
 
@@ -39,6 +42,7 @@ export default function App() {
         }
       >
         <Route index element={<Dashboard />} />
+        <Route path="/access" element={<AccessMatrix />} />
 
         <Route
           path="/employees"
@@ -53,6 +57,22 @@ export default function App() {
           element={
             <ProtectedRoute roles={HR}>
               <EmployeeForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contracts"
+          element={
+            <ProtectedRoute roles={HR}>
+              <ContractsList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contracts/:id"
+          element={
+            <ProtectedRoute roles={HR}>
+              <ContractForm />
             </ProtectedRoute>
           }
         />

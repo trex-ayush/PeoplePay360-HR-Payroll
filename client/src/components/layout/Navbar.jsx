@@ -2,17 +2,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
 import { Avatar, Dropdown, DropdownItem, DropdownDivider } from '@/components/ui'
-import { ROUTES } from '@/config/constants'
+import { ROLE_LABELS, ROUTES } from '@/config/constants'
 import { env } from '@/config/env'
 import { cn } from '@/utils/cn'
-
-const ROLE_LABELS = {
-  employee: 'Employee',
-  hr_manager: 'HR Manager',
-  hr_payroll_user: 'HR Payroll User',
-  hr_payroll_manager: 'HR Payroll Manager',
-  admin: 'Admin',
-}
 
 export function Navbar() {
   const { user, logout } = useAuth()
@@ -84,6 +76,8 @@ export function Navbar() {
             <ThemeOption active={theme === 'dark'} onSelect={() => setTheme('dark')} label="Dark" />
           </div>
         </div>
+
+        <DropdownItem onSelect={() => navigate('/access')}>Access &amp; Roles</DropdownItem>
 
         <DropdownDivider />
         <DropdownItem danger onSelect={handleLogout}>

@@ -89,7 +89,7 @@ export default function ScheduleForm() {
       if (isNew) {
         const { schedule } = await schedulesApi.create(data)
         notify.success(`${schedule.name} created · ${schedule.weeklyHours}h per week`)
-        navigate(`/working-schedules/${schedule._id}`, { replace: true })
+        navigate('/working-schedules')
       } else {
         const { schedule } = await schedulesApi.update(id, data)
         notify.success(`Saved · ${schedule.weeklyHours}h per week`)
