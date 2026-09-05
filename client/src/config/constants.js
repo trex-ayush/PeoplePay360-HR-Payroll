@@ -64,3 +64,25 @@ export const PAYSLIP_STATES = [
   { value: 'done', label: 'Done', tone: 'info' },
   { value: 'paid', label: 'Paid', tone: 'success' },
 ]
+
+export const TIMEOFF_UNITS = [
+  { value: 'days', label: 'Days' },
+  { value: 'hours', label: 'Hours' },
+]
+
+export const ALLOCATION_STATES = [
+  { value: 'draft', label: 'To Approve', tone: 'warning' },
+  { value: 'approved', label: 'Approved', tone: 'success' },
+  { value: 'refused', label: 'Refused', tone: 'danger' },
+]
+
+export const REQUEST_STATES = [
+  { value: 'draft', label: 'To Approve', tone: 'warning' },
+  { value: 'approved', label: 'Approved', tone: 'success' },
+  { value: 'refused', label: 'Refused', tone: 'danger' },
+]
+
+export const ALLOCATION_MODES = [
+  { value: 'fixed', label: 'Fixed grant' },
+  { value: 'accrual', label: 'Accrual' },
+]

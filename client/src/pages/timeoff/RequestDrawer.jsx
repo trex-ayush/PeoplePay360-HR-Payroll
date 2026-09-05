@@ -1,0 +1,359 @@
+import { useEffect, useState } from 'react'
+import { AlertTriangle, Check, Pencil, X } from 'lucide-react'
+import {
+  Badge,
+  Button,
+  Drawer,
+  ErrorState,
+  FormField,
+  Input,
+  ReadOnlyField,
+  Skeleton,
+} from '@/components/ui'
+import { employeesApi, timeOffRequestsApi, timeOffTypesApi } from '@/api/hr'
+import { useNotify } from '@/context/NotificationContext'
+import { getErrorMessage } from '@/utils/errorUtils'
+import { REQUEST_STATES } from '@/config/constants'
+
+const toDateInput = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '')
+
+const longDate = (value) =>
+  new Date(value).toLocaleDateString('en-IN', { dateStyle: 'medium' })
+
+const round2 = (n) => Math.round(n * 100) / 100
+
+const EMPTY = { employee: '', type: '', dateFrom: '', dateTo: '', reason: '' }
+
+function Select({ label, htmlFor, required, hint, children, ...rest }) {
+  return (
+    <FormField label={label} htmlFor={htmlFor} required={required} hint={hint}>
+      <select
+        id={htmlFor}
+        className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100"
+        {...rest}
+      >
+        {children}
+      </select>
+    </FormField>
+  )
+}
+
+export function RequestDrawer({ requestId, onClose, onSaved }) {
+  const isNew = requestId === 'new'
+  const notify = useNotify()
+
+  const [form, setForm] = useState(EMPTY)
+  const [record, setRecord] = useState(null)
+  const [balance, setBalance] = useState(null)
+  const [options, setOptions] = useState({ employees: [], types: [] })
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
+  const [editing, setEditing] = useState(isNew)
+  const [saving, setSaving] = useState(false)
+  const [paidDays, setPaidDays] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const [{ employees }, { types }] = await Promise.all([
+          employeesApi.list(),
+          timeOffTypesApi.list(),
+        ])
+        if (cancelled) return
+        setOptions({ employees, types })
+
+        if (!isNew) {
+          const { request, balance } = await timeOffRequestsApi.get(requestId)
+          if (cancelled) return
+          setRecord(request)
+          setBalance(balance)
+          setPaidDays(balance ? Math.min(request.duration, Math.max(0, balance.remaining)) : null)
+          setForm({
+            ...EMPTY,
+            ...request,
+            employee: request.employee?._id ?? '',
+            type: request.type?._id ?? '',
+            dateFrom: toDateInput(request.dateFrom),
+            dateTo: toDateInput(request.dateTo),
+          })
+        }
+        setLoadError(null)
+      } catch (err) {
+        if (!cancelled) setLoadError(err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [requestId, isNew])
+
+  const set = (field) => (event) =>
+    setForm((current) => ({ ...current, [field]: event.target.value }))
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    setSaving(true)
+    try {
+      if (isNew) {
+        await timeOffRequestsApi.create(form)
+        notify.success('Request submitted')
+      } else {
+        await timeOffRequestsApi.update(requestId, form)
+        notify.success('Changes saved')
+        setEditing(false)
+      }
+      onSaved()
+    } catch (err) {
+      notify.error(getErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function decide(action, verb) {
+    try {
+      const body = action === 'approve' && paidDays !== null ? { paidDuration: paidDays } : undefined
+      const { request } = await timeOffRequestsApi[action](requestId, body)
+
+      notify.success(
+        request.unpaidDuration
+          ? `Approved · ${request.paidDuration} paid, ${request.unpaidDuration} unpaid`
+          : `Request ${verb}`
+      )
+      onSaved()
+      onClose()
+    } catch (err) {
+      notify.error(getErrorMessage(err))
+    }
+  }
+
+  const meta = REQUEST_STATES.find((s) => s.value === record?.state)
+  const unit = record?.type?.unit ?? 'days'
+  const shortfall = balance && record ? round2(record.duration - balance.remaining) : 0
+
+  return (
+    <Drawer
+      isOpen
+      onClose={onClose}
+      size="md"
+      title={isNew ? 'New time off request' : record?.employee?.name ?? 'Time off request'}
+      description="Approving a request is what consumes the employee’s balance."
+      footer={
+        editing ? (
+          <>
+            <Button
+              key="cancel"
+              variant="secondary"
+              onClick={isNew ? onClose : () => setEditing(false)}
+            >
+              Cancel
+            </Button>
+            <Button key="save" type="submit" form="request-form" loading={saving}>
+              {isNew ? 'Submit request' : 'Save changes'}
+            </Button>
+          </>
+        ) : record?.state === 'draft' ? (
+          <>
+            <Button
+              key="refuse"
+              variant="secondary"
+              iconLeft={<X size={14} />}
+              onClick={() => decide('refuse', 'refused')}
+            >
+              Refuse
+            </Button>
+            <Button
+              key="approve"
+              iconLeft={<Check size={14} />}
+              onClick={() => decide('approve', 'approved')}
+            >
+              Approve
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button key="close" variant="secondary" onClick={onClose}>
+              Close
+            </Button>
+            <Button
+              key="reopen"
+              variant="secondary"
+              iconLeft={<X size={14} />}
+              onClick={() => decide('refuse', 'refused')}
+              disabled={record?.state === 'refused'}
+            >
+              Refuse
+            </Button>
+            <Button key="edit" iconLeft={<Pencil size={14} />} onClick={() => setEditing(true)}>
+              Edit
+            </Button>
+          </>
+        )
+      }
+    >
+      {loading ? (
+        <div className="space-y-4">
+          <Skeleton height={64} />
+          <Skeleton height={80} />
+        </div>
+      ) : loadError ? (
+        <ErrorState description={getErrorMessage(loadError)} />
+      ) : !editing && record ? (
+        <div className="space-y-5">
+          <Badge tone={meta?.tone ?? 'neutral'} dot={record.state === 'approved'}>
+            {meta?.label ?? record.state}
+          </Badge>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <ReadOnlyField label="Employee">{record.employee?.name}</ReadOnlyField>
+            <ReadOnlyField label="Time Off Type">{record.type?.name}</ReadOnlyField>
+            <ReadOnlyField label="Start Date">{longDate(record.dateFrom)}</ReadOnlyField>
+            <ReadOnlyField label="End Date">{longDate(record.dateTo)}</ReadOnlyField>
+            <ReadOnlyField label="Duration">
+              <span className="tabular-nums">
+                {record.duration} {unit}
+              </span>
+            </ReadOnlyField>
+            <ReadOnlyField label="Approver">{record.approver?.name ?? '—'}</ReadOnlyField>
+            <div className="sm:col-span-2">
+              <ReadOnlyField label="Reason">{record.reason}</ReadOnlyField>
+            </div>
+          </div>
+
+          {record.type?.requiresAllocation ? (
+            <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-700">
+              <p className="text-xs uppercase tracking-wider text-neutral-500">Allocation Used</p>
+              {balance ? (
+                <div className="mt-2 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
+                  <span>
+                    Accrued <span className="font-medium tabular-nums">{balance.accrued}</span>
+                  </span>
+                  <span>
+                    Taken <span className="font-medium tabular-nums">{balance.taken}</span>
+                  </span>
+                  <span>
+                    Remaining{' '}
+                    <span className="font-semibold tabular-nums">{balance.remaining}</span> {unit}
+                  </span>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+                  No approved allocation covers these dates, so this request cannot be approved.
+                </p>
+              )}
+            </div>
+          ) : null}
+
+          {shortfall > 0 ? (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+              <p className="flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-300">
+                <AlertTriangle size={15} />
+                {record.employee?.name} has {balance.remaining} {unit} left but asked for{' '}
+                {record.duration}
+              </p>
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                Choose how much comes out of the balance. The remaining {shortfall} {unit} are
+                approved as leave without pay, and payroll deducts them.
+              </p>
+
+              {record.state === 'draft' ? (
+                <div className="mt-3 flex flex-wrap items-end gap-3">
+                  <div className="w-32">
+                    <FormField label={`Paid from balance`} htmlFor="paidDays">
+                      <Input
+                        id="paidDays"
+                        type="number"
+                        min="0"
+                        max={balance.remaining}
+                        step="0.5"
+                        value={paidDays ?? 0}
+                        onChange={(e) => setPaidDays(Number(e.target.value))}
+                      />
+                    </FormField>
+                  </div>
+                  <p className="pb-2 text-xs text-amber-700 dark:text-amber-400">
+                    {paidDays ?? 0} paid · {round2(record.duration - (paidDays ?? 0))} unpaid
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {record.state === 'approved' && record.unpaidDuration ? (
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              {record.paidDuration} {unit} paid from the allocation, {record.unpaidDuration} taken
+              without pay.
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <form id="request-form" onSubmit={handleSubmit} className="space-y-4">
+          <Select
+            label="Employee"
+            htmlFor="employee"
+            required
+            value={form.employee}
+            onChange={set('employee')}
+          >
+            <option value="">Select employee</option>
+            {options.employees.map((e) => (
+              <option key={e._id} value={e._id}>
+                {e.name} · {e.code}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            label="Time Off Type"
+            htmlFor="type"
+            required
+            value={form.type}
+            onChange={set('type')}
+          >
+            <option value="">Select type</option>
+            {options.types.map((t) => (
+              <option key={t._id} value={t._id}>
+                {t.name}
+              </option>
+            ))}
+          </Select>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              label="Start Date"
+              htmlFor="dateFrom"
+              required
+              hint="Duration skips rest days"
+            >
+              <Input
+                id="dateFrom"
+                type="date"
+                value={form.dateFrom}
+                onChange={set('dateFrom')}
+                required
+              />
+            </FormField>
+            <FormField label="End Date" htmlFor="dateTo" required hint="Both dates are included">
+              <Input id="dateTo" type="date" value={form.dateTo} onChange={set('dateTo')} required />
+            </FormField>
+          </div>
+
+          <FormField label="Reason" htmlFor="reason">
+            <Input
+              id="reason"
+              placeholder="Family vacation"
+              value={form.reason}
+              onChange={set('reason')}
+            />
+          </FormField>
+        </form>
+      )}
+    </Drawer>
+  )
+}

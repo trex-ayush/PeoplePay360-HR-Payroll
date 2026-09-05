@@ -12,13 +12,8 @@ const payslipLineSchema = new mongoose.Schema(
   { _id: false }
 )
 
-/**
- * A payslip is a snapshot, not a view.
- *
- * Wage, structure name and every line amount are copied in at compute time, so
- * editing a contract or a salary rule afterwards leaves already-issued payslips
- * exactly as they were paid.
- */
+// A snapshot, not a view: wage, structure name and line amounts are copied in at
+// compute time, so editing a contract or rule later cannot change an issued payslip.
 const payslipSchema = new mongoose.Schema(
   {
     payrun: { type: mongoose.Schema.Types.ObjectId, ref: 'Payrun', required: true, index: true },

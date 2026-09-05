@@ -2,16 +2,16 @@ import { Payrun } from '../models/Payrun.js'
 import { Payslip } from '../models/Payslip.js'
 import { SalaryRule } from '../models/SalaryRule.js'
 import { findContractForPeriod } from '../services/contract.js'
-import { computePayslipLines } from '../services/payroll.js'
-import { findEligibleEmployees, workingDaysInPeriod } from '../services/payrun.js'
+import { computePayslipLines, round2 } from '../services/payroll.js'
+import { unpaidDaysInPeriod } from '../services/leave.js'
+import { findEligibleEmployees } from '../services/payrun.js'
+import { workingDaysBetween } from '../services/schedule.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
 
 const POPULATE = [{ path: 'structure', select: 'name code' }]
 
 const LOCKED = ['validated', 'paid']
 
-// A validated batch is a historical record — the spec keeps finalized payruns
-// read-only so an already-issued payslip can never change under the employee.
 function assertOpen(payrun) {
   if (LOCKED.includes(payrun.state)) {
     throw httpError(409, `This payrun is ${payrun.state} and can no longer be changed`)
@@ -48,8 +48,8 @@ export const list = asyncHandler(async (req, res) => {
   })
 })
 
-// Wizard step 2 reads this. It creates nothing — the spec is explicit that
-// Continue must not bring a payrun into existence.
+// Creates nothing: the spec is explicit that Continue must not bring a payrun
+// into existence.
 export const eligibleEmployees = asyncHandler(async (req, res) => {
   const { structure, start, end, employeeTypes } = req.query
 
@@ -96,7 +96,6 @@ export const compute = asyncHandler(async (req, res) => {
   const rules = await SalaryRule.find({ structure: payrun.structure, active: true }).lean()
   if (!rules.length) throw httpError(400, 'This salary structure has no rules to compute')
 
-  // Recomputing replaces the batch rather than adding to it.
   await Payslip.deleteMany({ payrun: payrun._id })
 
   const skipped = []
@@ -109,15 +108,20 @@ export const compute = asyncHandler(async (req, res) => {
       continue
     }
 
-    const totalWorkingDays = workingDaysInPeriod(
+    const totalWorkingDays = workingDaysBetween(
       contract.schedule,
       payrun.periodStart,
       payrun.periodEnd
     )
 
+    // Unpaid leave is the only thing that shortens a month right now; attendance
+    // will feed the same number once it exists.
+    const unpaidDays = await unpaidDaysInPeriod(employeeId, payrun.periodStart, payrun.periodEnd)
+    const workedDays = Math.max(0, round2(totalWorkingDays - unpaidDays))
+
     const { lines, gross, deductions, net } = computePayslipLines(rules, {
       wage: contract.wage,
-      workedDays: totalWorkingDays,
+      workedDays,
       totalWorkingDays,
     })
 
@@ -130,7 +134,7 @@ export const compute = asyncHandler(async (req, res) => {
       wage: contract.wage,
       periodStart: payrun.periodStart,
       periodEnd: payrun.periodEnd,
-      workedDays: totalWorkingDays,
+      workedDays,
       totalWorkingDays,
       lines,
       grossAmount: gross,

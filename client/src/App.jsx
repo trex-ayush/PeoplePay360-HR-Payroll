@@ -16,6 +16,9 @@ import PayrunsList from '@/pages/payroll/PayrunsList'
 import PayrunDetail from '@/pages/payroll/PayrunDetail'
 import PayslipsList from '@/pages/payroll/PayslipsList'
 import PayslipDetail from '@/pages/payroll/PayslipDetail'
+import TimeOffRequestsList from '@/pages/timeoff/RequestsList'
+import AllocationsList from '@/pages/timeoff/AllocationsList'
+import TimeOffTypesList from '@/pages/timeoff/TypesList'
 
 const HR = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
 const PAYROLL = ['hr_payroll_user', 'hr_payroll_manager', 'admin']
@@ -89,6 +92,31 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/time-off/requests"
+          element={
+            <ProtectedRoute>
+              <TimeOffRequestsList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/time-off/allocations"
+          element={
+            <ProtectedRoute roles={HR}>
+              <AllocationsList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/time-off/types"
+          element={
+            <ProtectedRoute roles={HR}>
+              <TimeOffTypesList />
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/payruns"
           element={

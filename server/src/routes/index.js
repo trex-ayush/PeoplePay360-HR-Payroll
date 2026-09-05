@@ -9,6 +9,7 @@ import salaryStructureRoutes from './salaryStructures.js'
 import salaryRuleRoutes from './salaryRules.js'
 import payrunRoutes from './payruns.js'
 import payslipRoutes from './payslips.js'
+import timeOffRoutes from './timeOff.js'
 
 const router = Router()
 
@@ -29,5 +30,6 @@ router.use('/salary-structures', salaryStructureRoutes)
 router.use('/salary-rules', salaryRuleRoutes)
 router.use('/payruns', payrunRoutes)
 router.use('/payslips', payslipRoutes)
+router.use('/timeoff', timeOffRoutes)
 
 export default router

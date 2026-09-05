@@ -6,11 +6,8 @@ const OPERATORS = new Set(['+', '-', '*', '/', '(', ')'])
 
 const parse = (text) => (text ? (text.match(TOKEN) ?? []) : [])
 
-/**
- * Formula editor built on tokens rather than free text. Each completed code
- * becomes a chip inside the field, so a formula reads back as its parts and a
- * typo is visible immediately — an unknown word simply never becomes a chip.
- */
+// Token-based rather than free text, so an unknown code never becomes a chip and a
+// typo is visible while typing.
 export function CodeInput({ value = '', onChange, codes = [], placeholder, id }) {
   const [tokens, setTokens] = useState(() => parse(value))
   const [draft, setDraft] = useState('')
@@ -21,7 +18,7 @@ export function CodeInput({ value = '', onChange, codes = [], placeholder, id })
 
   const known = new Map(codes.map((c) => [c.code.toUpperCase(), c]))
 
-  // Adopt an externally set formula (loading a rule, resetting the form).
+  // Adopt a formula set from outside (loading a rule, resetting the form).
   useEffect(() => {
     if (value !== emitted.current) {
       setTokens(parse(value))

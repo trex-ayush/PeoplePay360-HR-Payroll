@@ -10,7 +10,6 @@ const payrunSchema = new mongoose.Schema(
       required: true,
     },
 
-    // The wizard's scope filter, kept so the batch can explain who it covered.
     employeeTypes: { type: [String], enum: EMPLOYEE_TYPES, default: [] },
 
     periodStart: { type: Date, required: true },

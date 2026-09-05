@@ -2,11 +2,13 @@ import { Outlet } from 'react-router-dom'
 import {
   CalendarClock,
   CalendarOff,
+  CalendarPlus,
   Clock,
   FileText,
   Home,
   Layers,
   Receipt,
+  Tags,
   Building2,
   Users,
   Wallet,
@@ -38,7 +40,24 @@ const SECTIONS = [
         icon: <CalendarClock {...iconProps} />,
       },
       { to: '/attendance', label: 'Attendance', icon: <Clock {...iconProps} /> },
-      { to: '/time-off', label: 'Time Off', icon: <CalendarOff {...iconProps} /> },
+    ],
+  },
+  {
+    title: 'Time Off',
+    items: [
+      { to: '/time-off/requests', label: 'Requests', icon: <CalendarOff {...iconProps} /> },
+      {
+        to: '/time-off/allocations',
+        label: 'Allocations',
+        roles: HR,
+        icon: <CalendarPlus {...iconProps} />,
+      },
+      {
+        to: '/time-off/types',
+        label: 'Time Off Types',
+        roles: HR,
+        icon: <Tags {...iconProps} />,
+      },
     ],
   },
   {

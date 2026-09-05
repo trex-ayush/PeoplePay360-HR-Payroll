@@ -28,3 +28,27 @@ export function computeWeeklyHours(lines = []) {
 export function workingDayNumbers(lines = []) {
   return [...new Set(lines.filter((l) => l.active !== false).map((l) => l.dayOfWeek))].sort()
 }
+
+const MON_TO_FRI = [0, 1, 2, 3, 4]
+
+// Date.getDay() counts from Sunday; schedule lines count from Monday.
+const weekdayIndex = (date) => (date.getDay() + 6) % 7
+
+// Both dates inclusive. Payroll uses it for the period denominator, time off for a
+// request's duration.
+export function workingDaysBetween(schedule, from, to) {
+  const days = schedule?.lines?.length ? workingDayNumbers(schedule.lines) : MON_TO_FRI
+
+  let count = 0
+  const cursor = new Date(from)
+  cursor.setHours(0, 0, 0, 0)
+  const last = new Date(to)
+  last.setHours(0, 0, 0, 0)
+
+  while (cursor <= last) {
+    if (days.includes(weekdayIndex(cursor))) count += 1
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  return count
+}

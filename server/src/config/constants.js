@@ -40,3 +40,11 @@ export const PAYRUN_STATES = ['draft', 'computed', 'validated', 'paid']
 
 // A payslip only exists once its payrun has been computed, so there is no draft.
 export const PAYSLIP_STATES = ['done', 'paid']
+
+export const TIMEOFF_UNITS = ['days', 'hours']
+
+export const ALLOCATION_MODES = ['fixed', 'accrual']
+
+export const ALLOCATION_STATES = ['draft', 'approved', 'refused']
+
+export const REQUEST_STATES = ['draft', 'approved', 'refused']

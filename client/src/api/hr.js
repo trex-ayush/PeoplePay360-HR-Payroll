@@ -75,3 +75,31 @@ export const payslipsApi = {
   list: (params) => api.get(`/payslips${query(params)}`),
   get: (id) => api.get(`/payslips/${id}`),
 }
+
+export const timeOffTypesApi = {
+  list: (params) => api.get(`/timeoff/types${query(params)}`),
+  get: (id) => api.get(`/timeoff/types/${id}`),
+  create: (body) => api.post('/timeoff/types', body),
+  update: (id, body) => api.patch(`/timeoff/types/${id}`, body),
+  remove: (id) => api.delete(`/timeoff/types/${id}`),
+}
+
+export const allocationsApi = {
+  list: (params) => api.get(`/timeoff/allocations${query(params)}`),
+  get: (id) => api.get(`/timeoff/allocations/${id}`),
+  create: (body) => api.post('/timeoff/allocations', body),
+  update: (id, body) => api.patch(`/timeoff/allocations/${id}`, body),
+  approve: (id) => api.post(`/timeoff/allocations/${id}/approve`),
+  refuse: (id) => api.post(`/timeoff/allocations/${id}/refuse`),
+  remove: (id) => api.delete(`/timeoff/allocations/${id}`),
+}
+
+export const timeOffRequestsApi = {
+  list: (params) => api.get(`/timeoff/requests${query(params)}`),
+  get: (id) => api.get(`/timeoff/requests/${id}`),
+  create: (body) => api.post('/timeoff/requests', body),
+  update: (id, body) => api.patch(`/timeoff/requests/${id}`, body),
+  approve: (id, body) => api.post(`/timeoff/requests/${id}/approve`, body),
+  refuse: (id) => api.post(`/timeoff/requests/${id}/refuse`),
+  remove: (id) => api.delete(`/timeoff/requests/${id}`),
+}
