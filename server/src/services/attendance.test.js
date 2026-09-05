@@ -83,3 +83,53 @@ test('an employee with no schedule never reads as late or overtime', () => {
   assert.equal(overtimeHours, 0)
   assert.equal(status, 'present')
 })
+
+test('working on a day the schedule does not cover is overtime end to end', () => {
+  const saturday = summarise({
+    schedule: OFFICE,
+    checkIn: new Date('2026-09-12T09:00:00'),
+    checkOut: new Date('2026-09-12T21:00:00'),
+  })
+
+  assert.equal(saturday.workedHours, 12)
+  assert.equal(saturday.overtimeHours, 12)
+  assert.equal(saturday.status, 'overtime')
+})
+
+test('coming in early on a working day is not late', () => {
+  const { status } = summarise({ schedule: OFFICE, checkIn: at('03:00'), checkOut: at('07:00') })
+  assert.equal(status, 'present')
+})
+
+test('leaving well before the shift ends is a short day', () => {
+  const { workedHours, shortHours, status } = summarise({
+    schedule: OFFICE,
+    checkIn: at('09:00'),
+    checkOut: at('13:00'),
+  })
+
+  assert.equal(workedHours, 4)
+  assert.equal(shortHours, 5)
+  assert.equal(status, 'present')
+})
+
+test('a few minutes short is not a short day', () => {
+  const { shortHours } = summarise({
+    schedule: OFFICE,
+    checkIn: at('09:00'),
+    checkOut: at('17:50'),
+  })
+
+  assert.equal(shortHours, 0)
+})
+
+test('a rest day is never short, only overtime', () => {
+  const { overtimeHours, shortHours } = summarise({
+    schedule: OFFICE,
+    checkIn: new Date('2026-09-12T09:00:00'),
+    checkOut: new Date('2026-09-12T11:00:00'),
+  })
+
+  assert.equal(overtimeHours, 2)
+  assert.equal(shortHours, 0)
+})

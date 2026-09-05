@@ -6,14 +6,17 @@ import { Badge, Button, DataTable, DeleteConfirmModal, EmptyState } from '@/comp
 import { RowActions } from '@/components/RowActions'
 import { AllocationDrawer } from './AllocationDrawer'
 import { allocationsApi } from '@/api/hr'
+import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { ALLOCATION_STATES } from '@/config/constants'
 
+const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
+
 const amount = (value, unit) => `${value} ${unit ?? 'days'}`
 
-const buildColumns = ({ onEdit, onDelete }) => [
+const buildColumns = ({ canManage, onEdit, onDelete }) => [
   {
     key: 'employee',
     header: 'Employee',
@@ -47,11 +50,18 @@ const buildColumns = ({ onEdit, onDelete }) => [
     cell: (row) => <span className="tabular-nums">{amount(row.taken, row.type?.unit)}</span>,
   },
   {
-    key: 'remaining',
-    header: 'Remaining',
+    key: 'available',
+    header: 'Available',
     align: 'right',
     cell: (row) => (
-      <span className="font-medium tabular-nums">{amount(row.remaining, row.type?.unit)}</span>
+      <div className="tabular-nums">
+        <span className="font-medium">{amount(row.available, row.type?.unit)}</span>
+        {row.pending ? (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            {row.pending} awaiting approval
+          </p>
+        ) : null}
+      </div>
     ),
   },
   {
@@ -81,13 +91,17 @@ const buildColumns = ({ onEdit, onDelete }) => [
     header: '',
     width: 60,
     align: 'right',
-    cell: (row) => <RowActions onEdit={() => onEdit(row)} onDelete={() => onDelete(row)} />,
+    cell: (row) =>
+      canManage ? <RowActions onEdit={() => onEdit(row)} onDelete={() => onDelete(row)} /> : null,
   },
 ]
 
 export default function AllocationsList() {
   usePageTitle('Allocations')
   const notify = useNotify()
+  const { user } = useAuth()
+
+  const canManage = user.roles.some((role) => HR_ROLES.includes(role))
 
   const [allocations, setAllocations] = useState([])
   const [loading, setLoading] = useState(true)
@@ -131,16 +145,26 @@ export default function AllocationsList() {
     <PageContainer>
       <PageHeader
         title="Allocations"
-        description="Leave granted to an employee for a validity window. Only an approved allocation can be drawn from."
+        description={
+          canManage
+            ? 'Leave granted to an employee for a validity window. Only an approved allocation can be drawn from.'
+            : 'Your leave balances. Remaining is what you can still request.'
+        }
         actions={
-          <Button iconLeft={<Plus size={16} />} onClick={() => setOpenId('new')}>
-            New
-          </Button>
+          canManage ? (
+            <Button iconLeft={<Plus size={16} />} onClick={() => setOpenId('new')}>
+              New
+            </Button>
+          ) : null
         }
       />
 
       <DataTable
-        columns={buildColumns({ onEdit: (row) => setOpenId(row._id), onDelete: setPendingDelete })}
+        columns={buildColumns({
+          canManage,
+          onEdit: (row) => setOpenId(row._id),
+          onDelete: setPendingDelete,
+        })}
         rows={allocations}
         rowKey={(row) => row._id}
         loading={loading}
@@ -149,8 +173,12 @@ export default function AllocationsList() {
         rounded="lg"
         emptyState={
           <EmptyState
-            title="No allocations yet"
-            description="Grant a balance to an employee, approve it, and they can request leave against it."
+            title={canManage ? 'No allocations yet' : 'No leave allocated to you yet'}
+            description={
+              canManage
+                ? 'Grant a balance to an employee, approve it, and they can request leave against it.'
+                : 'HR grants your balance. Until then there is nothing to draw leave from.'
+            }
           />
         }
       />

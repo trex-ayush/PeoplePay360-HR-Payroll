@@ -53,3 +53,6 @@ export const ATTENDANCE_STATUSES = ['present', 'late', 'absent', 'overtime']
 
 // Minutes past the scheduled start that still count as on time.
 export const LATE_GRACE_MINUTES = 15
+
+// Minutes short of the scheduled span before a day counts as a short day.
+export const SHORT_DAY_GRACE_MINUTES = 15

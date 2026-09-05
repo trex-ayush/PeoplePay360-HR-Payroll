@@ -7,24 +7,27 @@ import { TimeOffType } from '../models/TimeOffType.js'
 
 const round2 = (n) => Math.round(n * 100) / 100
 
-const monthRange = (month) => {
-  const [year, index] = month.split('-').map(Number)
-  return { start: new Date(year, index - 1, 1), end: new Date(year, index, 0, 23, 59, 59) }
-}
+const monthKey = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 
-const shiftMonth = (month, by) => {
-  const [year, index] = month.split('-').map(Number)
-  const date = new Date(year, index - 1 + by, 1)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-}
+const monthRange = (date, back = 0) => ({
+  start: new Date(date.getFullYear(), date.getMonth() - back, 1),
+  end: new Date(date.getFullYear(), date.getMonth() - back + 1, 0, 23, 59, 59),
+})
 
 const sum = (rows, field) => round2(rows.reduce((total, row) => total + (row[field] ?? 0), 0))
 
+// A payslip covers a whole month, so it belongs to any range that touches it.
+// Filtering on its start date would empty the payroll figures for "today".
+const overlapping = (ids, from, to) => ({
+  employee: { $in: ids },
+  periodStart: { $lte: to },
+  periodEnd: { $gte: from },
+})
+
 // Everything here is read off real records. A number that cannot be derived is
 // left out rather than filled in, because the spec asks for live data.
-export async function getDashboard({ month, department, employeeType }) {
-  const { start, end } = monthRange(month)
-
+export async function getDashboard({ from, to, department, employeeType }) {
   const employeeFilter = { active: true }
   if (department) employeeFilter.department = department
   if (employeeType) employeeFilter.employeeType = employeeType
@@ -35,17 +38,15 @@ export async function getDashboard({ month, department, employeeType }) {
 
   const ids = employees.map((e) => e._id)
 
-  const payslips = await Payslip.find({
-    employee: { $in: ids },
-    periodStart: { $gte: start, $lte: end },
-  }).select('employee netAmount state')
-
+  const payslips = await Payslip.find(overlapping(ids, from, to)).select(
+    'employee netAmount state'
+  )
   const paid = payslips.filter((p) => p.state === 'paid')
 
-  const previous = monthRange(shiftMonth(month, -1))
+  // The same span again, immediately before, so the comparison is like for like.
+  const span = to - from
   const previousPaid = await Payslip.find({
-    employee: { $in: ids },
-    periodStart: { $gte: previous.start, $lte: previous.end },
+    ...overlapping(ids, new Date(from.getTime() - span - 1), new Date(from.getTime() - 1)),
     state: 'paid',
   }).select('netAmount')
 
@@ -54,7 +55,7 @@ export async function getDashboard({ month, department, employeeType }) {
 
   const attendance = await Attendance.find({
     employee: { $in: ids },
-    date: { $gte: start, $lte: end },
+    date: { $gte: from, $lte: to },
   }).select('status')
 
   const counted = (status) => attendance.filter((a) => a.status === status).length
@@ -65,13 +66,11 @@ export async function getDashboard({ month, department, employeeType }) {
 
   const requests = await TimeOffRequest.find({
     employee: { $in: ids },
-    dateFrom: { $gte: start, $lte: end },
+    dateFrom: { $gte: from, $lte: to },
   }).select('type duration state')
 
   const approvedDays = sum(
-    requests.filter(
-      (r) => r.state === 'approved' && dayTypeIds.some((id) => id.equals(r.type))
-    ),
+    requests.filter((r) => r.state === 'approved' && dayTypeIds.some((id) => id.equals(r.type))),
     'duration'
   )
 
@@ -90,17 +89,17 @@ export async function getDashboard({ month, department, employeeType }) {
     departments.set(name, row)
   }
 
+  // Always six months back from the end of the range, whatever the range is —
+  // a trend over a single day would say nothing.
   const trend = []
   for (let back = 5; back >= 0; back -= 1) {
-    const key = shiftMonth(month, -back)
-    const range = monthRange(key)
+    const range = monthRange(to, back)
     const slips = await Payslip.find({
-      employee: { $in: ids },
-      periodStart: { $gte: range.start, $lte: range.end },
+      ...overlapping(ids, range.start, range.end),
       state: 'paid',
     }).select('netAmount')
 
-    trend.push({ month: key, net: sum(slips, 'netAmount') })
+    trend.push({ month: monthKey(range.start), net: sum(slips, 'netAmount') })
   }
 
   const expiringSoon = new Date()
@@ -136,8 +135,13 @@ export async function getDashboard({ month, department, employeeType }) {
       ),
       pending: requests.filter((r) => r.state === 'draft' && type._id.equals(r.type)).length,
     })),
+    // Alerts answer "what is waiting on someone right now", so unlike the KPIs
+    // they deliberately ignore the selected period.
     alerts: {
-      pendingTimeOff: requests.filter((r) => r.state === 'draft').length,
+      pendingTimeOff: await TimeOffRequest.countDocuments({
+        employee: { $in: ids },
+        state: 'draft',
+      }),
       contractsExpiring: await Contract.countDocuments({
         employee: { $in: ids },
         state: 'running',

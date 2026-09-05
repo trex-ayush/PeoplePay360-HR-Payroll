@@ -133,7 +133,7 @@ export default function App() {
         <Route
           path="/time-off/allocations"
           element={
-            <ProtectedRoute roles={HR}>
+            <ProtectedRoute>
               <AllocationsList />
             </ProtectedRoute>
           }

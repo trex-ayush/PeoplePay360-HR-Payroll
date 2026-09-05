@@ -49,7 +49,6 @@ const SECTIONS = [
       {
         to: '/time-off/allocations',
         label: 'Allocations',
-        roles: HR,
         icon: <CalendarPlus {...iconProps} />,
       },
       {

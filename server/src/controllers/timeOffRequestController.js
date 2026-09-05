@@ -1,7 +1,14 @@
 import { Employee } from '../models/Employee.js'
 import { TimeOffRequest } from '../models/TimeOffRequest.js'
 import { TimeOffType } from '../models/TimeOffType.js'
-import { computeDuration, findAllocationFor, getBalance, splitDuration } from '../services/leave.js'
+import {
+  assertNotSelf,
+  computeDuration,
+  findAllocationFor,
+  getBalance,
+  splitDuration,
+} from '../services/leave.js'
+import { assertOwn, ownFilter } from '../middleware/auth.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
 
 const POPULATE = [
@@ -39,13 +46,16 @@ export const list = asyncHandler(async (req, res) => {
   if (type) filter.type = type
   if (state) filter.state = state
 
-  const requests = await TimeOffRequest.find(filter).populate(POPULATE).sort({ dateFrom: -1 })
+  const requests = await TimeOffRequest.find({ ...filter, ...ownFilter(req) })
+    .populate(POPULATE)
+    .sort({ dateFrom: -1 })
   res.json({ requests })
 })
 
 export const getOne = asyncHandler(async (req, res) => {
   const request = await TimeOffRequest.findById(req.params.id).populate(POPULATE)
   if (!request) throw httpError(404, 'Time off request not found')
+  assertOwn(req, request.employee._id)
 
   const allocation = request.type.requiresAllocation
     ? await findAllocationFor(request.employee, request.type, request.dateFrom, request.dateTo)
@@ -53,12 +63,15 @@ export const getOne = asyncHandler(async (req, res) => {
 
   res.json({
     request,
-    balance: allocation ? { _id: allocation._id, ...(await getBalance(allocation)) } : null,
+    balance: allocation
+      ? { _id: allocation._id, ...(await getBalance(allocation, request._id)) }
+      : null,
   })
 })
 
 export const create = asyncHandler(async (req, res) => {
   const { employee, type, dateFrom, dateTo, reason } = req.body
+  assertOwn(req, employee)
 
   const { duration } = await durationFor(employee, type, dateFrom, dateTo)
 
@@ -70,6 +83,7 @@ export const update = asyncHandler(async (req, res) => {
   const request = await TimeOffRequest.findById(req.params.id)
   if (!request) throw httpError(404, 'Time off request not found')
 
+  assertOwn(req, request.employee)
   if (request.state === 'approved') {
     throw httpError(409, 'Refuse this request before changing its dates')
   }
@@ -93,6 +107,7 @@ export const approve = asyncHandler(async (req, res) => {
   const request = await TimeOffRequest.findById(req.params.id)
   if (!request) throw httpError(404, 'Time off request not found')
   if (request.state === 'approved') throw httpError(409, 'This request is already approved')
+  assertNotSelf(req.user, request.employee, 'time off request')
 
   const type = await TimeOffType.findById(request.type)
   const split = await splitDuration(request, type, req.body?.paidDuration)
@@ -124,6 +139,7 @@ export const refuse = asyncHandler(async (req, res) => {
 export const remove = asyncHandler(async (req, res) => {
   const request = await TimeOffRequest.findById(req.params.id)
   if (!request) throw httpError(404, 'Time off request not found')
+  assertOwn(req, request.employee)
 
   await request.deleteOne()
   res.json({ deleted: request._id })

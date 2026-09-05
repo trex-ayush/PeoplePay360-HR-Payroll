@@ -11,6 +11,7 @@ import {
   Skeleton,
 } from '@/components/ui'
 import { attendanceApi, employeesApi } from '@/api/hr'
+import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { ATTENDANCE_STATUSES } from '@/config/constants'
@@ -28,11 +29,17 @@ const stamp = (value) =>
     ? new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
     : '—'
 
+const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
+
 const EMPTY = { employee: '', checkIn: '', checkOut: '', notes: '' }
 
 export function AttendanceDrawer({ recordId, onClose, onSaved }) {
   const isNew = recordId === 'new'
   const notify = useNotify()
+  const { user } = useAuth()
+
+  // Only HR corrects records, and only HR can read the staff list.
+  const canCorrect = user.roles.some((role) => HR_ROLES.includes(role))
 
   const [form, setForm] = useState(EMPTY)
   const [record, setRecord] = useState(null)
@@ -47,9 +54,11 @@ export function AttendanceDrawer({ recordId, onClose, onSaved }) {
 
     async function load() {
       try {
-        const { employees } = await employeesApi.list()
+        if (canCorrect) {
+          const { employees } = await employeesApi.list()
+          if (!cancelled) setEmployees(employees)
+        }
         if (cancelled) return
-        setEmployees(employees)
 
         if (!isNew) {
           const { record } = await attendanceApi.get(recordId)
@@ -74,7 +83,7 @@ export function AttendanceDrawer({ recordId, onClose, onSaved }) {
     return () => {
       cancelled = true
     }
-  }, [recordId, isNew])
+  }, [recordId, isNew, canCorrect])
 
   const set = (field) => (event) =>
     setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -133,9 +142,11 @@ export function AttendanceDrawer({ recordId, onClose, onSaved }) {
             <Button key="close" variant="secondary" onClick={onClose}>
               Close
             </Button>
-            <Button key="edit" iconLeft={<Pencil size={14} />} onClick={() => setEditing(true)}>
-              Correct
-            </Button>
+            {canCorrect ? (
+              <Button key="edit" iconLeft={<Pencil size={14} />} onClick={() => setEditing(true)}>
+                Correct
+              </Button>
+            ) : null}
           </>
         )
       }
@@ -166,8 +177,10 @@ export function AttendanceDrawer({ recordId, onClose, onSaved }) {
             <ReadOnlyField label="Worked Hours">
               <span className="tabular-nums">{record.workedHours}</span>
             </ReadOnlyField>
-            <ReadOnlyField label="Overtime">
-              <span className="tabular-nums">{record.overtimeHours} hrs</span>
+            <ReadOnlyField label={record.shortHours ? 'Short By' : 'Overtime'}>
+              <span className="tabular-nums">
+                {record.shortHours ? record.shortHours : record.overtimeHours} hrs
+              </span>
             </ReadOnlyField>
             <div className="sm:col-span-2">
               <ReadOnlyField label="Notes">{record.notes}</ReadOnlyField>

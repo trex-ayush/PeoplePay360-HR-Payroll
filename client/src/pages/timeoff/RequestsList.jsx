@@ -6,6 +6,7 @@ import { Badge, Button, DataTable, DeleteConfirmModal, EmptyState } from '@/comp
 import { RowActions } from '@/components/RowActions'
 import { RequestDrawer } from './RequestDrawer'
 import { timeOffRequestsApi } from '@/api/hr'
+import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { getErrorMessage } from '@/utils/errorUtils'
@@ -14,7 +15,9 @@ import { REQUEST_STATES } from '@/config/constants'
 const shortDate = (value) =>
   new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
 
-const buildColumns = ({ onDecide, onEdit, onDelete }) => [
+const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
+
+const buildColumns = ({ canDecide, onDecide, onEdit, onDelete }) => [
   {
     key: 'employee',
     header: 'Employee',
@@ -62,7 +65,7 @@ const buildColumns = ({ onDecide, onEdit, onDelete }) => [
     header: '',
     align: 'right',
     cell: (row) =>
-      row.state === 'draft' ? (
+      canDecide && row.state === 'draft' ? (
         <span onClick={(e) => e.stopPropagation()} role="presentation" className="flex justify-end gap-1">
           <Button
             size="sm"
@@ -95,6 +98,9 @@ const buildColumns = ({ onDecide, onEdit, onDelete }) => [
 export default function RequestsList() {
   usePageTitle('Time Off Requests')
   const notify = useNotify()
+  const { user } = useAuth()
+
+  const canDecide = user.roles.some((role) => HR_ROLES.includes(role))
 
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
@@ -153,7 +159,11 @@ export default function RequestsList() {
     <PageContainer>
       <PageHeader
         title="Time Off Requests"
-        description="Leave asked for by employees. Approving one draws its duration from the matching allocation."
+        description={
+          canDecide
+            ? 'Leave asked for by employees. Approving one draws its duration from the matching allocation.'
+            : 'Your leave requests. HR reviews each one before it is approved.'
+        }
         actions={
           <Button iconLeft={<Plus size={16} />} onClick={() => setOpenId('new')}>
             New
@@ -163,6 +173,7 @@ export default function RequestsList() {
 
       <DataTable
         columns={buildColumns({
+          canDecide,
           onDecide: decide,
           onEdit: (row) => setOpenId(row._id),
           onDelete: setPendingDelete,

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { accruedOn, computeDuration } from './leave.js'
+import { accruedOn, assertNotSelf, computeDuration } from './leave.js'
 
 const line = (dayOfWeek) => ({ dayOfWeek, startTime: '09:00', endTime: '18:00', breakMinutes: 60 })
 
@@ -72,4 +72,28 @@ test('accrual stops at the ceiling', () => {
 
 test('accrual stops accruing once the validity window ends', () => {
   assert.equal(accruedOn(accrual(), new Date('2027-06-01')), 18)
+})
+
+const actor = (roles, employeeId) => ({
+  employeeId,
+  hasRole: (...wanted) => roles.some((r) => wanted.includes(r)),
+})
+
+test('an HR user cannot approve their own request', () => {
+  assert.throws(
+    () => assertNotSelf(actor(['hr_manager'], 'emp1'), 'emp1', 'time off request'),
+    /cannot approve your own/
+  )
+})
+
+test('an HR user can approve somebody else', () => {
+  assert.doesNotThrow(() => assertNotSelf(actor(['hr_manager'], 'emp1'), 'emp2', 'allocation'))
+})
+
+test('an HR user with no employee record is not blocked', () => {
+  assert.doesNotThrow(() => assertNotSelf(actor(['hr_manager'], null), 'emp1', 'allocation'))
+})
+
+test('admin stays the escape hatch', () => {
+  assert.doesNotThrow(() => assertNotSelf(actor(['admin'], 'emp1'), 'emp1', 'allocation'))
 })

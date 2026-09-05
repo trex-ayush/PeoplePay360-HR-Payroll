@@ -10,7 +10,8 @@ import {
   ReadOnlyField,
   Skeleton,
 } from '@/components/ui'
-import { employeesApi, timeOffRequestsApi, timeOffTypesApi } from '@/api/hr'
+import { allocationsApi, employeesApi, timeOffRequestsApi, timeOffTypesApi } from '@/api/hr'
+import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { REQUEST_STATES } from '@/config/constants'
@@ -21,6 +22,8 @@ const longDate = (value) =>
   new Date(value).toLocaleDateString('en-IN', { dateStyle: 'medium' })
 
 const round2 = (n) => Math.round(n * 100) / 100
+
+const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
 
 const EMPTY = { employee: '', type: '', dateFrom: '', dateTo: '', reason: '' }
 
@@ -41,6 +44,9 @@ function Select({ label, htmlFor, required, hint, children, ...rest }) {
 export function RequestDrawer({ requestId, onClose, onSaved }) {
   const isNew = requestId === 'new'
   const notify = useNotify()
+  const { user } = useAuth()
+
+  const canDecide = user.roles.some((role) => HR_ROLES.includes(role))
 
   const [form, setForm] = useState(EMPTY)
   const [record, setRecord] = useState(null)
@@ -50,6 +56,7 @@ export function RequestDrawer({ requestId, onClose, onSaved }) {
   const [loadError, setLoadError] = useState(null)
   const [editing, setEditing] = useState(isNew)
   const [saving, setSaving] = useState(false)
+  const [quota, setQuota] = useState(null)
   const [paidDays, setPaidDays] = useState(null)
 
   useEffect(() => {
@@ -57,12 +64,15 @@ export function RequestDrawer({ requestId, onClose, onSaved }) {
 
     async function load() {
       try {
-        const [{ employees }, { types }] = await Promise.all([
-          employeesApi.list(),
+        // An employee cannot read the staff list, and does not need it: their own
+        // request is always for themselves.
+        const [{ types }, staff] = await Promise.all([
           timeOffTypesApi.list(),
+          canDecide ? employeesApi.list() : Promise.resolve({ employees: [] }),
         ])
         if (cancelled) return
-        setOptions({ employees, types })
+        setOptions({ employees: staff.employees, types })
+        if (isNew && !canDecide) setForm((f) => ({ ...f, employee: user.employeeId ?? '' }))
 
         if (!isNew) {
           const { request, balance } = await timeOffRequestsApi.get(requestId)
@@ -91,7 +101,23 @@ export function RequestDrawer({ requestId, onClose, onSaved }) {
     return () => {
       cancelled = true
     }
-  }, [requestId, isNew])
+  }, [requestId, isNew, canDecide, user.employeeId])
+
+  // What they have left, looked up as soon as there is an employee and a type —
+  // nobody should have to guess before picking dates.
+  useEffect(() => {
+    if (!form.employee || !form.type) return setQuota(null)
+
+    let cancelled = false
+    allocationsApi
+      .list({ employee: form.employee, type: form.type, state: 'approved' })
+      .then(({ allocations }) => !cancelled && setQuota(allocations[0] ?? null))
+      .catch(() => !cancelled && setQuota(null))
+
+    return () => {
+      cancelled = true
+    }
+  }, [form.employee, form.type])
 
   const set = (field) => (event) =>
     setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -158,7 +184,7 @@ export function RequestDrawer({ requestId, onClose, onSaved }) {
               {isNew ? 'Submit request' : 'Save changes'}
             </Button>
           </>
-        ) : record?.state === 'draft' ? (
+        ) : canDecide && record?.state === 'draft' ? (
           <>
             <Button
               key="refuse"
@@ -298,15 +324,23 @@ export function RequestDrawer({ requestId, onClose, onSaved }) {
             label="Employee"
             htmlFor="employee"
             required
+            hint={canDecide ? undefined : 'You can only raise leave for yourself'}
             value={form.employee}
             onChange={set('employee')}
+            disabled={!canDecide}
           >
-            <option value="">Select employee</option>
-            {options.employees.map((e) => (
-              <option key={e._id} value={e._id}>
-                {e.name} · {e.code}
-              </option>
-            ))}
+            {canDecide ? (
+              <>
+                <option value="">Select employee</option>
+                {options.employees.map((e) => (
+                  <option key={e._id} value={e._id}>
+                    {e.name} · {e.code}
+                  </option>
+                ))}
+              </>
+            ) : (
+              <option value={user.employeeId ?? ''}>{user.name}</option>
+            )}
           </Select>
 
           <Select
@@ -323,6 +357,37 @@ export function RequestDrawer({ requestId, onClose, onSaved }) {
               </option>
             ))}
           </Select>
+
+          {quota ? (
+            <div className="rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+              <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm">
+                <span className="text-xs uppercase tracking-wider text-neutral-500">
+                  {quota.type?.name}
+                </span>
+                <span>
+                  Accrued <span className="font-medium tabular-nums">{quota.accrued}</span>
+                </span>
+                <span>
+                  Taken <span className="font-medium tabular-nums">{quota.taken}</span>
+                </span>
+                {quota.pending ? (
+                  <span className="text-amber-600 dark:text-amber-400">
+                    Awaiting approval{' '}
+                    <span className="font-medium tabular-nums">{quota.pending}</span>
+                  </span>
+                ) : null}
+                <span className="ml-auto">
+                  Available{' '}
+                  <span className="text-base font-semibold tabular-nums">{quota.available}</span>{' '}
+                  {quota.type?.unit}
+                </span>
+              </div>
+            </div>
+          ) : form.type && options.types.find((t) => t._id === form.type)?.requiresAllocation ? (
+            <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+              No approved allocation covers this leave type, so a request cannot be approved yet.
+            </p>
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField

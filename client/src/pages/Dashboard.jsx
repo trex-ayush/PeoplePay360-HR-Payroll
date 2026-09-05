@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { ATTENDANCE_STATUSES, EMPLOYEE_TYPES } from '@/config/constants'
+import { cn } from '@/utils/cn'
 
 const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
 
@@ -29,9 +30,55 @@ const monthLabel = (key) => {
   return new Date(year, index - 1, 1).toLocaleDateString('en-IN', { month: 'short' })
 }
 
-const thisMonth = () => {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+// Local YYYY-MM-DD; toISOString would shift the day for anyone behind UTC.
+const iso = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+
+const shiftDays = (days) => {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return date
+}
+
+// Weeks start on Monday here, the same as working schedules do.
+const startOfWeek = () => {
+  const date = new Date()
+  date.setDate(date.getDate() - ((date.getDay() + 6) % 7))
+  return date
+}
+
+const PRESETS = [
+  { key: 'today', label: 'Today', range: () => [new Date(), new Date()] },
+  { key: 'yesterday', label: 'Yesterday', range: () => [shiftDays(-1), shiftDays(-1)] },
+  { key: 'week', label: 'This week', range: () => [startOfWeek(), new Date()] },
+  {
+    key: 'month',
+    label: 'This month',
+    range: () => {
+      const now = new Date()
+      return [new Date(now.getFullYear(), now.getMonth(), 1), new Date(now.getFullYear(), now.getMonth() + 1, 0)]
+    },
+  },
+  {
+    key: 'year',
+    label: 'This year',
+    range: () => {
+      const year = new Date().getFullYear()
+      return [new Date(year, 0, 1), new Date(year, 11, 31)]
+    },
+  },
+  { key: 'custom', label: 'Custom' },
+]
+
+const rangeOf = (key) => {
+  const [from, to] = PRESETS.find((p) => p.key === key).range()
+  return { from: iso(from), to: iso(to) }
+}
+
+const readable = (from, to) => {
+  const opts = { day: 'numeric', month: 'short', year: 'numeric' }
+  const start = new Date(from).toLocaleDateString('en-IN', opts)
+  return from === to ? start : `${start} — ${new Date(to).toLocaleDateString('en-IN', opts)}`
 }
 
 function Kpi({ label, value, hint }) {
@@ -96,7 +143,8 @@ export default function Dashboard() {
 
   const isHr = user.roles.some((role) => HR_ROLES.includes(role))
 
-  const [filters, setFilters] = useState({ month: thisMonth(), department: '', employeeType: '' })
+  const [preset, setPreset] = useState('month')
+  const [filters, setFilters] = useState({ ...rangeOf('month'), department: '', employeeType: '' })
   const [departments, setDepartments] = useState([])
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(isHr)
@@ -156,13 +204,49 @@ export default function Dashboard() {
       ) : data ? (
         <>
           <Card className="mb-6">
-            <CardBody className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <p className="mb-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                  Period
-                </p>
-                <Input type="month" value={filters.month} onChange={set('month')} />
+            <CardBody>
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                {PRESETS.map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => {
+                      setPreset(option.key)
+                      if (option.range) setFilters((f) => ({ ...f, ...rangeOf(option.key) }))
+                    }}
+                    className={cn(
+                      'rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors',
+                      preset === option.key
+                        ? 'border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900'
+                        : 'border-neutral-300 text-neutral-600 hover:border-neutral-400 dark:border-neutral-600 dark:text-neutral-300'
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+                <span className="ml-auto text-xs text-neutral-500 dark:text-neutral-400">
+                  {readable(filters.from, filters.to)}
+                </span>
               </div>
+
+              {preset === 'custom' ? (
+                <div className="mb-4 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                      From
+                    </p>
+                    <Input type="date" value={filters.from} max={filters.to} onChange={set('from')} />
+                  </div>
+                  <div>
+                    <p className="mb-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                      To
+                    </p>
+                    <Input type="date" value={filters.to} min={filters.from} onChange={set('to')} />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid gap-4 sm:grid-cols-2">
               <Select label="Department" value={filters.department} onChange={set('department')}>
                 <option value="">All departments</option>
                 {departments.map((d) => (
@@ -183,6 +267,7 @@ export default function Dashboard() {
                   </option>
                 ))}
               </Select>
+              </div>
             </CardBody>
           </Card>
 
@@ -192,8 +277,8 @@ export default function Dashboard() {
               value={compact(data.kpis.netPaid)}
               hint={
                 data.kpis.netChange === null
-                  ? 'No paid payslips last month'
-                  : `${data.kpis.netChange > 0 ? '+' : ''}${data.kpis.netChange}% vs previous month`
+                  ? 'Nothing paid in the period before'
+                  : `${data.kpis.netChange > 0 ? '+' : ''}${data.kpis.netChange}% vs previous period`
               }
             />
             <Kpi
@@ -223,6 +308,63 @@ export default function Dashboard() {
           </div>
 
           <div className="mb-6 grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <h2 className="font-semibold">Attendance Overview</h2>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  Across the selected period
+                </p>
+              </CardHeader>
+              <CardBody className="flex flex-wrap gap-4">
+                {ATTENDANCE_STATUSES.map((status) => (
+                  <div key={status.value} className="min-w-[70px]">
+                    <p className="text-2xl font-semibold tabular-nums">
+                      {data.attendance[status.value]}
+                    </p>
+                    <Badge tone={status.tone} size="sm">
+                      {status.label}
+                    </Badge>
+                  </div>
+                ))}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <h2 className="font-semibold">Alerts</h2>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  Waiting right now, whatever period is selected
+                </p>
+              </CardHeader>
+              <CardBody className="space-y-2 text-sm">
+                <Link
+                  to="/time-off/requests"
+                  className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-700/40"
+                >
+                  <span>Time off requests waiting for approval</span>
+                  <span className="font-semibold tabular-nums">{data.alerts.pendingTimeOff}</span>
+                </Link>
+                <Link
+                  to="/contracts"
+                  className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-700/40"
+                >
+                  <span>Contracts ending in the next 30 days</span>
+                  <span className="font-semibold tabular-nums">{data.alerts.contractsExpiring}</span>
+                </Link>
+                <Link
+                  to="/employees"
+                  className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-700/40"
+                >
+                  <span>Employees with no bank account</span>
+                  <span className="font-semibold tabular-nums">
+                    {data.alerts.employeesWithoutBankAccount}
+                  </span>
+                </Link>
+              </CardBody>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
                 <h2 className="font-semibold">Monthly Net Salary Trend</h2>
@@ -259,59 +401,6 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <h2 className="font-semibold">Attendance Overview</h2>
-              </CardHeader>
-              <CardBody className="flex flex-wrap gap-4">
-                {ATTENDANCE_STATUSES.map((status) => (
-                  <div key={status.value} className="min-w-[70px]">
-                    <p className="text-2xl font-semibold tabular-nums">
-                      {data.attendance[status.value]}
-                    </p>
-                    <Badge tone={status.tone} size="sm">
-                      {status.label}
-                    </Badge>
-                  </div>
-                ))}
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <h2 className="font-semibold">Alerts</h2>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  Things waiting on someone
-                </p>
-              </CardHeader>
-              <CardBody className="space-y-2 text-sm">
-                <Link
-                  to="/time-off/requests"
-                  className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-700/40"
-                >
-                  <span>Time off requests waiting for approval</span>
-                  <span className="font-semibold tabular-nums">{data.alerts.pendingTimeOff}</span>
-                </Link>
-                <Link
-                  to="/contracts"
-                  className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-700/40"
-                >
-                  <span>Contracts ending in the next 30 days</span>
-                  <span className="font-semibold tabular-nums">{data.alerts.contractsExpiring}</span>
-                </Link>
-                <Link
-                  to="/employees"
-                  className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-700/40"
-                >
-                  <span>Employees with no bank account</span>
-                  <span className="font-semibold tabular-nums">
-                    {data.alerts.employeesWithoutBankAccount}
-                  </span>
-                </Link>
-              </CardBody>
-            </Card>
-          </div>
         </>
       ) : null}
     </PageContainer>

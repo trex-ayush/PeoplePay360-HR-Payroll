@@ -1,6 +1,7 @@
 import { TimeOffAllocation } from '../models/TimeOffAllocation.js'
 import { TimeOffRequest } from '../models/TimeOffRequest.js'
-import { getBalance } from '../services/leave.js'
+import { assertNotSelf, getBalance } from '../services/leave.js'
+import { assertOwn, ownFilter } from '../middleware/auth.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
 
 const POPULATE = [
@@ -22,7 +23,7 @@ export const list = asyncHandler(async (req, res) => {
   if (type) filter.type = type
   if (state) filter.state = state
 
-  const allocations = await TimeOffAllocation.find(filter)
+  const allocations = await TimeOffAllocation.find({ ...filter, ...ownFilter(req) })
     .populate(POPULATE)
     .sort({ validFrom: -1 })
 
@@ -32,6 +33,8 @@ export const list = asyncHandler(async (req, res) => {
 export const getOne = asyncHandler(async (req, res) => {
   const allocation = await TimeOffAllocation.findById(req.params.id).populate(POPULATE)
   if (!allocation) throw httpError(404, 'Allocation not found')
+  assertOwn(req, allocation.employee._id)
+
   res.json({ allocation: await withBalance(allocation) })
 })
 
@@ -53,6 +56,7 @@ export const update = asyncHandler(async (req, res) => {
 export const approve = asyncHandler(async (req, res) => {
   const allocation = await TimeOffAllocation.findById(req.params.id)
   if (!allocation) throw httpError(404, 'Allocation not found')
+  assertNotSelf(req.user, allocation.employee, 'allocation')
 
   allocation.state = 'approved'
   allocation.approver = req.user._id

@@ -11,9 +11,12 @@ import {
   Skeleton,
 } from '@/components/ui'
 import { allocationsApi, employeesApi, timeOffTypesApi } from '@/api/hr'
+import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { ALLOCATION_MODES, ALLOCATION_STATES } from '@/config/constants'
+
+const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
 
 const toDateInput = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '')
 
@@ -56,6 +59,10 @@ function BalanceTile({ label, value, unit, strong }) {
 export function AllocationDrawer({ allocationId, onClose, onSaved }) {
   const isNew = allocationId === 'new'
   const notify = useNotify()
+  const { user } = useAuth()
+
+  // An employee reads their own balance; only HR grants or decides on one.
+  const canManage = user.roles.some((role) => HR_ROLES.includes(role))
 
   const [form, setForm] = useState(EMPTY)
   const [record, setRecord] = useState(null)
@@ -70,12 +77,12 @@ export function AllocationDrawer({ allocationId, onClose, onSaved }) {
 
     async function load() {
       try {
-        const [{ employees }, { types }] = await Promise.all([
-          employeesApi.list(),
+        const [{ types }, staff] = await Promise.all([
           timeOffTypesApi.list(),
+          canManage ? employeesApi.list() : Promise.resolve({ employees: [] }),
         ])
         if (cancelled) return
-        setOptions({ employees, types })
+        setOptions({ employees: staff.employees, types })
 
         if (!isNew) {
           const { allocation } = await allocationsApi.get(allocationId)
@@ -102,7 +109,7 @@ export function AllocationDrawer({ allocationId, onClose, onSaved }) {
     return () => {
       cancelled = true
     }
-  }, [allocationId, isNew])
+  }, [allocationId, isNew, canManage])
 
   const set = (field) => (event) =>
     setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -168,7 +175,7 @@ export function AllocationDrawer({ allocationId, onClose, onSaved }) {
               {isNew ? 'Create allocation' : 'Save changes'}
             </Button>
           </>
-        ) : record?.state === 'draft' ? (
+        ) : canManage && record?.state === 'draft' ? (
           <>
             <Button
               key="refuse"
@@ -191,9 +198,11 @@ export function AllocationDrawer({ allocationId, onClose, onSaved }) {
             <Button key="close" variant="secondary" onClick={onClose}>
               Close
             </Button>
-            <Button key="edit" iconLeft={<Pencil size={14} />} onClick={() => setEditing(true)}>
-              Edit
-            </Button>
+            {canManage ? (
+              <Button key="edit" iconLeft={<Pencil size={14} />} onClick={() => setEditing(true)}>
+                Edit
+              </Button>
+            ) : null}
           </>
         )
       }
@@ -218,8 +227,14 @@ export function AllocationDrawer({ allocationId, onClose, onSaved }) {
               unit={unit}
             />
             <BalanceTile label="Taken" value={record.taken} unit={unit} />
-            <BalanceTile label="Remaining" value={record.remaining} unit={unit} strong />
+            <BalanceTile label="Available" value={record.available} unit={unit} strong />
           </div>
+
+          {record.pending ? (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              {record.pending} {unit} sit in requests that are still waiting for a decision.
+            </p>
+          ) : null}
 
           {record.mode === 'accrual' ? (
             <p className="text-xs text-neutral-500 dark:text-neutral-400">

@@ -39,7 +39,7 @@ export function accruedOn(allocation, onDate = new Date()) {
 
 // R4. Taken is summed from approved requests rather than stored on the allocation,
 // so refusing one gives the balance back with no counter to keep in step.
-export async function getBalance(allocation) {
+export async function getBalance(allocation, exclude) {
   // Matched on the link set at approval, not on dates: two allocations may cover
   // the same window, and a request is only ever drawn from one of them.
   const approved = await TimeOffRequest.find({
@@ -49,13 +49,38 @@ export async function getBalance(allocation) {
 
   const taken = round2(approved.reduce((total, request) => total + request.paidDuration, 0))
 
+  // Requests awaiting a decision have no allocation link yet, so they match on
+  // employee and type. They are held back from `available` but not from
+  // `remaining`, which is what an approval is measured against.
+  const waiting = await TimeOffRequest.find({
+    employee: allocation.employee,
+    type: allocation.type,
+    state: 'draft',
+    dateFrom: { $gte: allocation.validFrom, $lte: allocation.validTo },
+    ...(exclude ? { _id: { $ne: exclude } } : {}),
+  }).select('duration')
+
+  const pending = round2(waiting.reduce((total, request) => total + request.duration, 0))
   const accrued = accruedOn(allocation)
+  const remaining = round2(accrued - taken)
 
   return {
     allocated: allocation.allocated,
     accrued,
     taken,
-    remaining: round2(accrued - taken),
+    pending,
+    remaining,
+    available: round2(remaining - pending),
+  }
+}
+
+// Nobody signs off on their own leave. Admin stays the way out for a company
+// with a single HR person, who would otherwise be stuck forever.
+export function assertNotSelf(actor, employeeId, what) {
+  if (actor.hasRole('admin')) return
+
+  if (actor.employeeId && String(actor.employeeId) === String(employeeId)) {
+    throw httpError(403, `You cannot approve your own ${what}. Ask another HR user to review it.`)
   }
 }
 

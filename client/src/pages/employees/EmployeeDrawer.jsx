@@ -146,6 +146,10 @@ function AttendanceTab({ employeeId }) {
                   <span className="ml-1 text-xs text-blue-600 dark:text-blue-400">
                     +{record.overtimeHours}
                   </span>
+                ) : record.shortHours ? (
+                  <span className="ml-1 text-xs text-amber-600 dark:text-amber-400">
+                    -{record.shortHours}
+                  </span>
                 ) : null}
               </span>
               <Badge tone={meta?.tone ?? 'neutral'} size="sm">

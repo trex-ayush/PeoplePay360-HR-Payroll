@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import { env } from '../config/env.js'
+import { HR_ROLES } from '../config/constants.js'
 import { User } from '../models/User.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
 
@@ -40,5 +41,24 @@ export function requireRole(...roles) {
   return (req, _res, next) => {
     if (req.user.hasRole('admin', ...roles)) return next()
     next(httpError(403, 'You do not have access to this action'))
+  }
+}
+
+const isHr = (user) => user.hasRole(...HR_ROLES)
+
+// The spec limits an employee to their own records, so every list they can reach
+// is narrowed to them. HR sees everyone and gets no extra filter.
+export function ownFilter(req) {
+  if (isHr(req.user)) return {}
+  if (!req.user.employeeId) {
+    throw httpError(403, 'Your account is not linked to an employee record yet')
+  }
+  return { employee: req.user.employeeId }
+}
+
+export function assertOwn(req, employeeId) {
+  if (isHr(req.user)) return
+  if (String(req.user.employeeId) !== String(employeeId)) {
+    throw httpError(403, 'You can only work with your own records')
   }
 }

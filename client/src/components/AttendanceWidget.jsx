@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { LogIn, LogOut } from 'lucide-react'
-import { Badge, Button, Skeleton } from '@/components/ui'
+import { Badge, Button, ConfirmModal, Skeleton } from '@/components/ui'
 import { attendanceApi } from '@/api/hr'
 import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
@@ -24,6 +24,7 @@ export function AttendanceWidget() {
   const [state, setState] = useState({ record: null, linked: true })
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const [now, setNow] = useState(() => Date.now())
 
   const load = useCallback(async () => {
@@ -51,6 +52,7 @@ export function AttendanceWidget() {
   }, [running])
 
   async function mark(action) {
+    setConfirming(false)
     setBusy(true)
     try {
       const { record } = await attendanceApi[action]()
@@ -110,7 +112,11 @@ export function AttendanceWidget() {
 
           {record?.checkOut ? (
             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              Done for today{record.overtimeHours ? ` · ${duration(record.overtimeHours)} overtime` : ''}
+              Checked out at {clock(record.checkOut)}
+              {record.overtimeHours ? ` · ${duration(record.overtimeHours)} overtime` : ''}
+              {record.shortHours ? ` · ${duration(record.shortHours)} short of the shift` : ''}
+              <br />
+              Ask HR to correct this day if the times are wrong.
             </p>
           ) : (
             <Button
@@ -118,13 +124,24 @@ export function AttendanceWidget() {
               variant={running ? 'secondary' : 'primary'}
               loading={busy}
               iconLeft={running ? <LogOut size={16} /> : <LogIn size={16} />}
-              onClick={() => mark(running ? 'checkOut' : 'checkIn')}
+              onClick={() => (running ? setConfirming(true) : mark('checkIn'))}
             >
               {running ? 'Check Out' : 'Check In'}
             </Button>
           )}
         </div>
       )}
+
+      {/* Checking out ends the day and cannot be undone by the employee. */}
+      <ConfirmModal
+        isOpen={confirming}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => mark('checkOut')}
+        title={`Check out at ${new Date(now).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}?`}
+        description={`That closes today at ${duration(elapsed)}. Only HR can change the times afterwards.`}
+        confirmLabel="Check out"
+        confirmVariant="primary"
+      />
     </div>
   )
 }

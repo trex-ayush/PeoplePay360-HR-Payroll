@@ -1,6 +1,7 @@
 import { Attendance } from '../models/Attendance.js'
 import { Employee } from '../models/Employee.js'
 import { startOfDay, summarise } from '../services/attendance.js'
+import { assertOwn, ownFilter } from '../middleware/auth.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
 
 const POPULATE = [
@@ -32,7 +33,9 @@ export const list = asyncHandler(async (req, res) => {
     if (to) filter.date.$lte = startOfDay(to)
   }
 
-  const records = await Attendance.find(filter).populate(POPULATE).sort({ date: -1, checkIn: -1 })
+  const records = await Attendance.find({ ...filter, ...ownFilter(req) })
+    .populate(POPULATE)
+    .sort({ date: -1, checkIn: -1 })
   res.json({ records })
 })
 
@@ -88,6 +91,8 @@ export const checkOut = asyncHandler(async (req, res) => {
 export const getOne = asyncHandler(async (req, res) => {
   const record = await Attendance.findById(req.params.id).populate(POPULATE)
   if (!record) throw httpError(404, 'Attendance record not found')
+  assertOwn(req, record.employee._id)
+
   res.json({ record })
 })
 

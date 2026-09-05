@@ -43,6 +43,8 @@ const buildColumns = ({ canCorrect, onEdit, onDelete }) => [
         <span>{row.workedHours}</span>
         {row.overtimeHours ? (
           <p className="text-xs text-blue-600 dark:text-blue-400">+{row.overtimeHours} OT</p>
+        ) : row.shortHours ? (
+          <p className="text-xs text-amber-600 dark:text-amber-400">-{row.shortHours} short</p>
         ) : null}
       </div>
     ),
