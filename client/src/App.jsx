@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppShell } from '@/components/layout/AppShell'
 import { ROUTES } from '@/config/constants'
 import Login from '@/pages/Login'
+import InviteAccept from '@/pages/InviteAccept'
 import Dashboard from '@/pages/Dashboard'
 import AccessMatrix from '@/pages/AccessMatrix'
 import EmployeesList from '@/pages/employees/EmployeesList'
@@ -39,6 +40,15 @@ export default function App() {
         element={
           <PublicOnly>
             <Login />
+          </PublicOnly>
+        }
+      />
+
+      <Route
+        path="/invite/:token"
+        element={
+          <PublicOnly>
+            <InviteAccept />
           </PublicOnly>
         }
       />

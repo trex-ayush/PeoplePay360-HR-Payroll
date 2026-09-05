@@ -8,6 +8,8 @@ import {
   update,
   remove,
   nextCode,
+  access,
+  grant,
 } from '../controllers/employeeController.js'
 
 const router = Router()
@@ -21,6 +23,9 @@ router.get('/next-code', nextCode)
 router.get('/', list)
 router.get('/:id', getOne)
 router.post('/', create)
+router.get('/:id/access', access)
+router.post('/:id/access', grant)
+
 router.patch('/:id', update)
 router.delete('/:id', remove)
 

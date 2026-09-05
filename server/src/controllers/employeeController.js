@@ -1,5 +1,7 @@
 import { Employee } from '../models/Employee.js'
 import { Contract } from '../models/Contract.js'
+import { User } from '../models/User.js'
+import { inviteUser, listInvites } from '../services/invite.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
 
 const POPULATE = [
@@ -46,14 +48,66 @@ export const nextCode = asyncHandler(async (_req, res) => {
   res.json({ code: await nextEmployeeCode() })
 })
 
+// Roles on an employee mean "give this person a login", handled in the same step.
+async function grantAccess(employee, roles, actor) {
+  const existing = await User.findOne({ employeeId: employee._id })
+  if (existing) {
+    existing.roles = roles
+    await existing.save()
+    return existing.password ? null : inviteUser(existing, actor)
+  }
+
+  if (await User.findOne({ email: employee.workEmail })) {
+    throw httpError(409, `An account with ${employee.workEmail} already exists`)
+  }
+
+  const user = await User.create({
+    name: employee.name,
+    email: employee.workEmail,
+    roles,
+    employeeId: employee._id,
+  })
+
+  return inviteUser(user, actor)
+}
+
 export const create = asyncHandler(async (req, res) => {
-  const code = req.body.code?.trim() || (await nextEmployeeCode())
-  const employee = await Employee.create({ ...req.body, code })
-  res.status(201).json({ employee: await employee.populate(POPULATE) })
+  const { roles, ...fields } = req.body
+
+  const code = fields.code?.trim() || (await nextEmployeeCode())
+  const employee = await Employee.create({ ...fields, code })
+
+  const invite = roles?.length ? await grantAccess(employee, roles, req.user) : null
+
+  res.status(201).json({ employee: await employee.populate(POPULATE), invite })
+})
+
+export const access = asyncHandler(async (req, res) => {
+  const employee = await Employee.findById(req.params.id)
+  if (!employee) throw httpError(404, 'Employee not found')
+
+  const user = await User.findOne({ employeeId: employee._id })
+  if (!user) return res.json({ user: null, invites: [] })
+
+  const { invites } = await listInvites({ user: user._id })
+  res.json({ user, invites })
+})
+
+export const grant = asyncHandler(async (req, res) => {
+  const employee = await Employee.findById(req.params.id)
+  if (!employee) throw httpError(404, 'Employee not found')
+
+  const roles = req.body.roles
+  if (!roles?.length) throw httpError(400, 'Pick at least one role for this account')
+
+  const invite = await grantAccess(employee, roles, req.user)
+  res.status(201).json({ invite })
 })
 
 export const update = asyncHandler(async (req, res) => {
-  const employee = await Employee.findByIdAndUpdate(req.params.id, req.body, {
+  const { roles, ...fields } = req.body
+
+  const employee = await Employee.findByIdAndUpdate(req.params.id, fields, {
     new: true,
     runValidators: true,
   }).populate(POPULATE)
@@ -81,6 +135,13 @@ export const remove = asyncHandler(async (req, res) => {
     { $set: { manager: null } }
   )
 
+  // Same reasoning for the login: it stops pointing anywhere rather than blocking.
+  const login = await User.updateMany({ employeeId: employee._id }, { $set: { employeeId: null } })
+
   await employee.deleteOne()
-  res.json({ deleted: employee.name, managerCleared: modifiedCount })
+  res.json({
+    deleted: employee.name,
+    managerCleared: modifiedCount,
+    loginUnlinked: login.modifiedCount,
+  })
 })

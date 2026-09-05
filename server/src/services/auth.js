@@ -12,7 +12,12 @@ export async function login({ email, password }) {
   if (!email || !password) throw httpError(400, 'Enter your email and password')
 
   const user = await User.findOne({ email: email.toLowerCase() }).select('+password')
-  if (!user || !(await user.comparePassword(password))) {
+  if (!user) throw httpError(401, 'Email or password is incorrect')
+
+  if (!user.password) {
+    throw httpError(403, 'This account has not been set up yet. Use the invite link you were sent.')
+  }
+  if (!(await user.comparePassword(password))) {
     throw httpError(401, 'Email or password is incorrect')
   }
   if (!user.active) throw httpError(403, 'This account has been deactivated')

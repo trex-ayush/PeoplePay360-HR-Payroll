@@ -23,7 +23,7 @@ export function errorHandler(err, _req, res, _next) {
   if (err.code === 11000) {
     status = 409
     const field = Object.keys(err.keyPattern || {})[0] || 'value'
-    message = `That ${field} is already in use`
+    message = `That ${field.replace(/([A-Z])/g, ' $1').toLowerCase()} is already in use`
   }
 
   if (status >= 500) console.error('[error]', err)

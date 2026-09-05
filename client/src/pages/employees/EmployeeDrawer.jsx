@@ -13,11 +13,12 @@ import {
   Input,
   Skeleton,
 } from '@/components/ui'
-import { contractsApi, departmentsApi, employeesApi, schedulesApi } from '@/api/hr'
+import { attendanceApi, contractsApi, departmentsApi, employeesApi, schedulesApi } from '@/api/hr'
+import { AccessTab, InviteLink, RolePicker } from './AccessTab'
 import { useNotify } from '@/context/NotificationContext'
 import { employeeSchema } from '@/validations/employee'
 import { getErrorMessage } from '@/utils/errorUtils'
-import { CONTRACT_STATES, EMPLOYEE_TYPES } from '@/config/constants'
+import { ATTENDANCE_STATUSES, CONTRACT_STATES, EMPLOYEE_TYPES } from '@/config/constants'
 import { cn } from '@/utils/cn'
 
 const EMPTY = {
@@ -37,6 +38,9 @@ const EMPTY = {
 
 const formatDate = (value) =>
   value ? new Date(value).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—'
+
+const formatClock = (value) =>
+  value ? new Date(value).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'
 
 const formatWage = (value) =>
   new Intl.NumberFormat('en-IN', {
@@ -77,6 +81,87 @@ function Tabs({ tabs, active, onChange }) {
           {tab.label}
         </button>
       ))}
+    </div>
+  )
+}
+
+function AttendanceTab({ employeeId }) {
+  const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+
+    attendanceApi
+      .list({ employee: employeeId })
+      .then(({ records }) => !cancelled && setRecords(records))
+      .catch(() => !cancelled && setRecords([]))
+      .finally(() => !cancelled && setLoading(false))
+
+    return () => {
+      cancelled = true
+    }
+  }, [employeeId])
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} height={56} rounded="lg" />
+        ))}
+      </div>
+    )
+  }
+
+  if (records.length === 0) {
+    return (
+      <EmptyState
+        compact
+        title="Nothing recorded yet"
+        description="Days appear here once they check in from the home page, or HR adds a record."
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {records.slice(0, 10).map((record) => {
+        const meta = ATTENDANCE_STATUSES.find((s) => s.value === record.status)
+
+        return (
+          <div
+            key={record._id}
+            className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 px-4 py-3 dark:border-neutral-700"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{formatDate(record.date)}</p>
+              <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                {formatClock(record.checkIn)} — {formatClock(record.checkOut)}
+              </p>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-3">
+              <span className="text-sm tabular-nums">
+                {record.workedHours}h
+                {record.overtimeHours ? (
+                  <span className="ml-1 text-xs text-blue-600 dark:text-blue-400">
+                    +{record.overtimeHours}
+                  </span>
+                ) : null}
+              </span>
+              <Badge tone={meta?.tone ?? 'neutral'} size="sm">
+                {meta?.label ?? record.status}
+              </Badge>
+            </div>
+          </div>
+        )
+      })}
+
+      <Link
+        to="/attendance"
+        className="inline-block pt-1 text-sm text-neutral-500 hover:underline dark:text-neutral-400"
+      >
+        View all in Attendance
+      </Link>
     </div>
   )
 }
@@ -154,6 +239,8 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
   const [contracts, setContracts] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
+  const [newRoles, setNewRoles] = useState([])
+  const [invite, setInvite] = useState(null)
 
   const {
     register,
@@ -221,8 +308,14 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
 
     try {
       if (isNew) {
-        const { employee } = await employeesApi.create(payload)
+        const { employee, invite } = await employeesApi.create({ ...payload, roles: newRoles })
         notify.success(`${employee.name} created`)
+        // The link has to be readable before the drawer goes away.
+        if (invite) {
+          setInvite(invite)
+          onSaved({ keepOpen: true })
+          return
+        }
       } else {
         await employeesApi.update(employeeId, payload)
         notify.success('Changes saved')
@@ -246,6 +339,7 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
             label: contracts.length ? `Contracts (${contracts.length})` : 'Contracts',
           },
           { key: 'attendance', label: 'Attendance' },
+          { key: 'access', label: 'Login Access' },
         ]),
   ]
 
@@ -257,7 +351,9 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
       title={isNew ? 'New employee' : name || 'Employee'}
       description={isNew ? 'Create an employee record.' : 'HR details, contracts and attendance.'}
       footer={
-        tab === 'details' ? (
+        invite ? (
+          <Button onClick={onClose}>Done</Button>
+        ) : tab === 'details' ? (
           <>
             <Button variant="secondary" onClick={onClose}>
               Cancel
@@ -279,7 +375,14 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
         <>
           <Tabs tabs={tabs} active={tab} onChange={setTab} />
 
-          {tab === 'details' ? (
+          {invite ? (
+            <div className="space-y-4">
+              <p className="text-sm">
+                Employee created. Send them this link so they can set a password.
+              </p>
+              <InviteLink invite={invite} onResend={() => {}} />
+            </div>
+          ) : tab === 'details' ? (
             loading ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 {Array.from({ length: 8 }).map((_, i) => (
@@ -398,6 +501,17 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
                     <option value="false">Archived</option>
                   </Select>
                 </div>
+
+                {isNew ? (
+                  <div className="mt-6 rounded-lg border border-neutral-200 p-4 dark:border-neutral-700">
+                    <p className="text-sm font-medium">Login access</p>
+                    <p className="mb-3 mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                      Pick roles to create an account too. They get a link to set their own
+                      password — leave this empty for someone who does not sign in.
+                    </p>
+                    <RolePicker roles={newRoles} onChange={setNewRoles} />
+                  </div>
+                ) : null}
               </form>
             )
           ) : null}
@@ -406,13 +520,9 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
             <ContractsTab employeeId={employeeId} contracts={contracts} loading={loading} />
           ) : null}
 
-          {tab === 'attendance' ? (
-            <EmptyState
-              compact
-              title="Attendance is not built yet"
-              description="Once the attendance phase lands, this tab will list check-ins and worked hours for this employee."
-            />
-          ) : null}
+          {tab === 'access' ? <AccessTab employeeId={employeeId} /> : null}
+
+          {tab === 'attendance' ? <AttendanceTab employeeId={employeeId} /> : null}
         </>
       )}
     </Drawer>

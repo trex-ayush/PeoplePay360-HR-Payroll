@@ -286,8 +286,8 @@ export default function EmployeesList() {
         <EmployeeDrawer
           employeeId={openId}
           onClose={() => setOpenId(null)}
-          onSaved={() => {
-            setOpenId(null)
+          onSaved={(options) => {
+            if (!options?.keepOpen) setOpenId(null)
             setReloadKey((k) => k + 1)
           }}
         />

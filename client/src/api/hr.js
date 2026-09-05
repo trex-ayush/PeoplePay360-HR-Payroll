@@ -17,6 +17,8 @@ export const employeesApi = {
   update: (id, body) => api.patch(`/employees/${id}`, body),
   remove: (id) => api.delete(`/employees/${id}`),
   related: (id) => api.get(`/employees/${id}/related`),
+  access: (id) => api.get(`/employees/${id}/access`),
+  grant: (id, roles) => api.post(`/employees/${id}/access`, { roles }),
 }
 
 export const departmentsApi = {
@@ -118,4 +120,11 @@ export const attendanceApi = {
 
 export const dashboardApi = {
   summary: (params) => api.get(`/dashboard${query(params)}`),
+}
+
+export const invitesApi = {
+  list: () => api.get('/auth/invites'),
+  resend: (id) => api.post(`/auth/invites/${id}/resend`),
+  open: (token) => api.get(`/auth/invites/${token}`),
+  accept: (token, password) => api.post(`/auth/invites/${token}/accept`, { password }),
 }
