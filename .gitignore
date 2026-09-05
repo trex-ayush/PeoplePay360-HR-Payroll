@@ -1,0 +1,23 @@
+# Reference material — spec, mockup, build plan, UI starter
+docs/
+
+node_modules/
+dist/
+build/
+
+.env
+.env.local
+.env.*.local
+!.env.example
+
+logs/
+*.log
+npm-debug.log*
+
+.vite/
+.cache/
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
