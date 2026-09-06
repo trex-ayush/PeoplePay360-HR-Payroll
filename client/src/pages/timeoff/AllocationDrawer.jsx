@@ -355,6 +355,7 @@ export function AllocationDrawer({ allocationId, onClose, onSaved }) {
                 id="validFrom"
                 type="date"
                 value={form.validFrom}
+                max={form.validTo || undefined}
                 onChange={set('validFrom')}
                 required
               />
@@ -364,6 +365,7 @@ export function AllocationDrawer({ allocationId, onClose, onSaved }) {
                 id="validTo"
                 type="date"
                 value={form.validTo}
+                min={form.validFrom || undefined}
                 onChange={set('validTo')}
                 required
               />

@@ -172,6 +172,8 @@ export function ContractDrawer({ contractId, presetEmployee, onClose, onSaved })
 
   const reference = watch('reference')
   const state = watch('state')
+  const startDate = watch('startDate')
+  const endDate = watch('endDate')
   const stateMeta = CONTRACT_STATES.find((s) => s.value === state)
 
   return (
@@ -348,7 +350,7 @@ export function ContractDrawer({ contractId, presetEmployee, onClose, onSaved })
               required
               error={errors.startDate?.message}
             >
-              <Input id="startDate" type="date" {...register('startDate')} />
+              <Input id="startDate" type="date" max={endDate || undefined} {...register('startDate')} />
             </FormField>
 
             <FormField
@@ -357,7 +359,7 @@ export function ContractDrawer({ contractId, presetEmployee, onClose, onSaved })
               error={errors.endDate?.message}
               hint="Leave empty for an open-ended contract"
             >
-              <Input id="endDate" type="date" {...register('endDate')} />
+              <Input id="endDate" type="date" min={startDate || undefined} {...register('endDate')} />
             </FormField>
           </div>
 

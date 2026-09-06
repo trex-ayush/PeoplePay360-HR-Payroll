@@ -352,6 +352,20 @@ export default function Dashboard() {
   const set = (field) => (event) =>
     setFilters((current) => ({ ...current, [field]: event.target.value }))
 
+  // min/max stop the picker, but a typed date still gets through, and a backwards
+  // range reads as an empty period rather than as a mistake. Dragging the other
+  // end along keeps what was typed and keeps the range valid.
+  const setDate = (edge) => (event) =>
+    setFilters((current) => {
+      const next = { ...current, [edge]: event.target.value }
+      if (next.from && next.to && next.from > next.to) {
+        return edge === 'from'
+          ? { ...next, to: event.target.value }
+          : { ...next, from: event.target.value }
+      }
+      return next
+    })
+
   return (
     <PageContainer>
       <PageHeader
@@ -409,13 +423,13 @@ export default function Dashboard() {
                     <p className="mb-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300">
                       From
                     </p>
-                    <Input type="date" value={filters.from} max={filters.to} onChange={set('from')} />
+                    <Input type="date" value={filters.from} max={filters.to} onChange={setDate('from')} />
                   </div>
                   <div>
                     <p className="mb-1.5 text-xs font-medium text-neutral-700 dark:text-neutral-300">
                       To
                     </p>
-                    <Input type="date" value={filters.to} min={filters.from} onChange={set('to')} />
+                    <Input type="date" value={filters.to} min={filters.from} onChange={setDate('to')} />
                   </div>
                 </div>
               ) : null}

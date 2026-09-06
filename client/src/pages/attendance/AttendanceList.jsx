@@ -79,6 +79,12 @@ const buildColumns = ({ canCorrect, onEdit, onDelete }) => [
   },
 ]
 
+const moveEnd = (range, edge, value) => {
+  const next = { ...range, [edge]: value }
+  if (!next.from || !next.to || next.from <= next.to) return next
+  return edge === 'from' ? { ...next, to: value } : { ...next, from: value }
+}
+
 export default function AttendanceList() {
   usePageTitle('Attendance')
   const notify = useNotify()
@@ -149,8 +155,9 @@ export default function AttendanceList() {
             label="From"
             type="date"
             value={range.from}
+            max={range.to || undefined}
             onChange={(e) => {
-              setRange((r) => ({ ...r, from: e.target.value }))
+              setRange((r) => moveEnd(r, 'from', e.target.value))
               setPage(1)
             }}
           />
@@ -160,8 +167,9 @@ export default function AttendanceList() {
             label="To"
             type="date"
             value={range.to}
+            min={range.from || undefined}
             onChange={(e) => {
-              setRange((r) => ({ ...r, to: e.target.value }))
+              setRange((r) => moveEnd(r, 'to', e.target.value))
               setPage(1)
             }}
           />

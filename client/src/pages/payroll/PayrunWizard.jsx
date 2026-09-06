@@ -291,6 +291,7 @@ export function PayrunWizard({ onClose, onCreated }) {
                   id="periodStart"
                   type="date"
                   value={scope.periodStart}
+                  max={scope.periodEnd || undefined}
                   onChange={(e) => setScope((s) => ({ ...s, periodStart: e.target.value }))}
                 />
               </FormField>
@@ -299,6 +300,7 @@ export function PayrunWizard({ onClose, onCreated }) {
                   id="periodEnd"
                   type="date"
                   value={scope.periodEnd}
+                  min={scope.periodStart || undefined}
                   onChange={(e) => setScope((s) => ({ ...s, periodEnd: e.target.value }))}
                 />
               </FormField>

@@ -399,12 +399,20 @@ export function RequestDrawer({ requestId, onClose, onSaved }) {
                 id="dateFrom"
                 type="date"
                 value={form.dateFrom}
+                max={form.dateTo || undefined}
                 onChange={set('dateFrom')}
                 required
               />
             </FormField>
             <FormField label="End Date" htmlFor="dateTo" required hint="Both dates are included">
-              <Input id="dateTo" type="date" value={form.dateTo} onChange={set('dateTo')} required />
+              <Input
+                id="dateTo"
+                type="date"
+                value={form.dateTo}
+                min={form.dateFrom || undefined}
+                onChange={set('dateTo')}
+                required
+              />
             </FormField>
           </div>
 
