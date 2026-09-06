@@ -1,7 +1,7 @@
 import { Employee } from '../models/Employee.js'
 import { Payslip } from '../models/Payslip.js'
 import { Payrun } from '../models/Payrun.js'
-import { findContractForPeriod } from './contract.js'
+import { findContractsForPeriod } from './contract.js'
 
 // toISOString() would shift the day for anyone east of UTC, and a contract that
 // ends on the 30th must not read as the 29th.
@@ -33,6 +33,12 @@ export async function getPayrunWarnings(payrun) {
 
   const duplicateBy = new Map(duplicates.map((p) => [String(p.employee), p.payrun?.name]))
 
+  const contracts = await findContractsForPeriod(
+    payrun.employees,
+    payrun.periodStart,
+    payrun.periodEnd
+  )
+
   const warnings = []
 
   const add = (type, severity, employee, message) =>
@@ -54,7 +60,7 @@ export async function getPayrunWarnings(payrun) {
       add('duplicate_payslip', 'danger', employee, `Already has a payslip in ${clash} for an overlapping period`)
     }
 
-    const contract = await findContractForPeriod(employee._id, payrun.periodStart, payrun.periodEnd)
+    const contract = contracts.get(String(employee._id))
 
     if (!contract) {
       add('no_active_contract', 'danger', employee, 'No running contract covers this period, so no payslip will be computed')

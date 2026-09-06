@@ -1,9 +1,9 @@
 import { Payrun } from '../models/Payrun.js'
 import { Payslip } from '../models/Payslip.js'
 import { SalaryRule } from '../models/SalaryRule.js'
-import { findContractForPeriod } from '../services/contract.js'
+import { findContractsForPeriod } from '../services/contract.js'
 import { computePayslipLines, round2 } from '../services/payroll.js'
-import { unpaidDaysInPeriod } from '../services/leave.js'
+import { unpaidDaysByEmployee } from '../services/leave.js'
 import { findEligibleEmployees } from '../services/payrun.js'
 import { getPayrunWarnings } from '../services/warnings.js'
 import { payslipEmail, send } from '../services/mailer.js'
@@ -108,11 +108,24 @@ export const compute = asyncHandler(async (req, res) => {
 
   await Payslip.deleteMany({ payrun: payrun._id })
 
+  // Both lookups are done once for the whole batch. Asking per employee turned a
+  // run's cost into the number of round trips rather than the work in it.
+  const contracts = await findContractsForPeriod(
+    payrun.employees,
+    payrun.periodStart,
+    payrun.periodEnd
+  )
+  const unpaidByEmployee = await unpaidDaysByEmployee(
+    payrun.employees,
+    payrun.periodStart,
+    payrun.periodEnd
+  )
+
   const skipped = []
   const payslips = []
 
   for (const employeeId of payrun.employees) {
-    const contract = await findContractForPeriod(employeeId, payrun.periodStart, payrun.periodEnd)
+    const contract = contracts.get(String(employeeId))
     if (!contract) {
       skipped.push(String(employeeId))
       continue
@@ -126,7 +139,7 @@ export const compute = asyncHandler(async (req, res) => {
 
     // Unpaid leave is the only thing that shortens a month right now; attendance
     // will feed the same number once it exists.
-    const unpaidDays = await unpaidDaysInPeriod(employeeId, payrun.periodStart, payrun.periodEnd)
+    const unpaidDays = unpaidByEmployee.get(String(employeeId)) ?? 0
     const workedDays = Math.max(0, round2(totalWorkingDays - unpaidDays))
 
     const { lines, gross, deductions, net } = computePayslipLines(rules, {

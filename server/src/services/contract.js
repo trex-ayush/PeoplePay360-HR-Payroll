@@ -22,6 +22,32 @@ export function findContractForPeriod(employeeId, periodStart, periodEnd) {
     .populate('schedule')
 }
 
+/**
+ * The same selection for a whole payrun in one query.
+ *
+ * Computing a payrun asked this per employee, which made the run's cost a
+ * straight line through the round trips rather than the work. Returned keyed by
+ * employee id.
+ */
+export async function findContractsForPeriod(employeeIds, periodStart, periodEnd) {
+  const contracts = await Contract.find({
+    employee: { $in: employeeIds },
+    state: 'running',
+    startDate: { $lte: periodEnd },
+    $or: [{ endDate: null }, { endDate: { $gte: periodStart } }],
+  })
+    .sort({ startDate: 1 })
+    .populate('structure')
+    .populate('schedule')
+
+  // Ascending, so the last one written per employee is their latest start — the
+  // one findContractForPeriod would have picked.
+  const byEmployee = new Map()
+  for (const contract of contracts) byEmployee.set(String(contract.employee), contract)
+
+  return byEmployee
+}
+
 /** Running contracts for the same employee whose date ranges overlap this one. */
 export function findOverlapping({ employee, startDate, endDate, excludeId }) {
   const query = {

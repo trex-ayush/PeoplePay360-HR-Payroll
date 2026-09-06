@@ -151,6 +151,25 @@ export async function splitDuration(request, type, requestedPaid) {
 
 // Unpaid leave the employee took in a payroll period, which is what turns a full
 // month of worked days into a short one.
+// The same total for a whole payrun in one query, keyed by employee id.
+export async function unpaidDaysByEmployee(employeeIds, periodStart, periodEnd) {
+  const requests = await TimeOffRequest.find({
+    employee: { $in: employeeIds },
+    state: 'approved',
+    unpaidDuration: { $gt: 0 },
+    dateFrom: { $gte: periodStart, $lte: periodEnd },
+  }).populate({ path: 'type', select: 'unit', model: TimeOffType })
+
+  const days = new Map()
+  for (const request of requests) {
+    if (request.type?.unit !== 'days') continue
+    const key = String(request.employee)
+    days.set(key, round2((days.get(key) ?? 0) + request.unpaidDuration))
+  }
+
+  return days
+}
+
 export async function unpaidDaysInPeriod(employee, periodStart, periodEnd) {
   const requests = await TimeOffRequest.find({
     employee,

@@ -1,5 +1,5 @@
 import { Employee } from '../models/Employee.js'
-import { findContractForPeriod } from './contract.js'
+import { findContractsForPeriod } from './contract.js'
 
 // An employee qualifies only when the contract covering this period (R1) points at
 // the payrun's structure, so picking one structure cannot pull in another's staff.
@@ -9,10 +9,16 @@ export async function findEligibleEmployees({ structure, periodStart, periodEnd,
 
   const employees = await Employee.find(filter).sort({ name: 1 })
 
+  const contracts = await findContractsForPeriod(
+    employees.map((e) => e._id),
+    periodStart,
+    periodEnd
+  )
+
   const eligible = []
 
   for (const employee of employees) {
-    const contract = await findContractForPeriod(employee._id, periodStart, periodEnd)
+    const contract = contracts.get(String(employee._id))
     if (!contract || String(contract.structure?._id) !== String(structure)) continue
 
     eligible.push({
