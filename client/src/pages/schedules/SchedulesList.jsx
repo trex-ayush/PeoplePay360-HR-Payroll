@@ -6,7 +6,8 @@ import { Badge, Button, DataTable, EmptyState, Input } from '@/components/ui'
 import { ScheduleDrawer } from './ScheduleDrawer'
 import { schedulesApi } from '@/api/hr'
 import { usePageTitle } from '@/hooks/usePageTitle'
-import { SCHEDULE_TYPES } from '@/config/constants'
+import { useDrawerRoute } from '@/hooks/useDrawerRoute'
+import { COMPANY_NAME, SCHEDULE_TYPES } from '@/config/constants'
 
 const columns = [
   {
@@ -28,6 +29,7 @@ const columns = [
     align: 'right',
     cell: (row) => <span className="font-semibold tabular-nums">{row.weeklyHours}h</span>,
   },
+  { key: 'company', header: 'Company', cell: () => COMPANY_NAME },
   {
     key: 'active',
     header: 'Status',
@@ -51,7 +53,7 @@ export default function SchedulesList() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [openId, setOpenId] = useState(null)
+  const [openId, setOpenId] = useDrawerRoute('/working-schedules')
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { Contract } from '../models/Contract.js'
 import { assertNoOverlap } from '../services/contract.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
+import { paginate } from '../utils/paginate.js'
 
 const POPULATE = [
   { path: 'employee', select: 'name code' },
@@ -10,18 +11,21 @@ const POPULATE = [
 ]
 
 export const list = asyncHandler(async (req, res) => {
-  const { employee, state, search } = req.query
+  const { employee, state, search, page, pageSize } = req.query
 
   const filter = {}
   if (employee) filter.employee = employee
   if (state) filter.state = state
   if (search) filter.reference = new RegExp(search, 'i')
 
-  const contracts = await Contract.find(filter)
-    .populate(POPULATE)
-    .sort({ startDate: -1 })
+  const { rows, ...meta } = await paginate(Contract, filter, {
+    sort: { startDate: -1 },
+    populate: POPULATE,
+    page,
+    pageSize,
+  })
 
-  res.json({ contracts })
+  res.json({ contracts: rows, ...meta })
 })
 
 // CON/2026/0001 — highest sequence used in that year, plus one.

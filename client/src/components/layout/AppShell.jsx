@@ -6,8 +6,11 @@ import {
   Clock,
   FileText,
   Home,
+  KeyRound,
   Layers,
   Receipt,
+  ShieldCheck,
+  Sigma,
   Tags,
   Building2,
   Users,
@@ -25,10 +28,10 @@ const iconProps = { size: 18, strokeWidth: 1.75 }
 const SECTIONS = [
   {
     title: 'Workspace',
-    items: [{ to: '/', label: 'Home', end: true, icon: <Home {...iconProps} /> }],
+    items: [{ to: '/', label: 'Dashboard', end: true, icon: <Home {...iconProps} /> }],
   },
   {
-    title: 'People',
+    title: 'Employees',
     items: [
       { to: '/employees', label: 'Employees', roles: HR, icon: <Users {...iconProps} /> },
       { to: '/contracts', label: 'Contracts', roles: HR, icon: <FileText {...iconProps} /> },
@@ -39,8 +42,11 @@ const SECTIONS = [
         roles: HR,
         icon: <CalendarClock {...iconProps} />,
       },
-      { to: '/attendance', label: 'Attendance', icon: <Clock {...iconProps} /> },
     ],
+  },
+  {
+    title: 'Attendance',
+    items: [{ to: '/attendance', label: 'Attendance', icon: <Clock {...iconProps} /> }],
   },
   {
     title: 'Time Off',
@@ -70,6 +76,14 @@ const SECTIONS = [
         roles: PAYROLL,
         icon: <Layers {...iconProps} />,
       },
+      { to: '/salary-rules', label: 'Salary Rules', roles: PAYROLL, icon: <Sigma {...iconProps} /> },
+    ],
+  },
+  {
+    title: 'System',
+    items: [
+      { to: '/users', label: 'User Management', roles: ['admin'], icon: <ShieldCheck {...iconProps} /> },
+      { to: '/access', label: 'Role Access', roles: ['admin'], icon: <KeyRound {...iconProps} /> },
     ],
   },
 ]

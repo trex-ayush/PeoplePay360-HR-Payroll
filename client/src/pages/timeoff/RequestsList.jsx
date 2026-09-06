@@ -9,8 +9,12 @@ import { timeOffRequestsApi } from '@/api/hr'
 import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useDrawerRoute } from '@/hooks/useDrawerRoute'
+import { useEmployeeFilter } from '@/hooks/useEmployeeFilter'
+import { EmployeeFilterChip } from '@/components/EmployeeFilterChip'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { REQUEST_STATES } from '@/config/constants'
+import { inUnits } from '@/utils/units'
 
 const shortDate = (value) =>
   new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
@@ -37,9 +41,7 @@ const buildColumns = ({ canDecide, onDecide, onEdit, onDelete }) => [
     align: 'right',
     cell: (row) => (
       <div className="tabular-nums">
-        <span>
-          {row.duration} {row.type?.unit ?? 'days'}
-        </span>
+        <span>{inUnits(row.duration, row.type?.unit)}</span>
         {row.unpaidDuration ? (
           <p className="text-xs text-amber-600 dark:text-amber-400">
             {row.unpaidDuration} unpaid
@@ -106,18 +108,23 @@ export default function RequestsList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
-  const [openId, setOpenId] = useState(null)
+  const [openId, setOpenId] = useDrawerRoute('/time-off/requests')
+  const { employeeId, employee, clear } = useEmployeeFilter()
+  const [team, setTeam] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [page, setPage] = useState(1)
+  const [meta, setMeta] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
 
     timeOffRequestsApi
-      .list()
-      .then(({ requests }) => {
+      .list({ employee: employeeId, team: team || undefined, page })
+      .then(({ requests, ...meta }) => {
         if (cancelled) return
         setRequests(requests)
+        setMeta(meta)
         setError(null)
       })
       .catch((err) => !cancelled && setError(err))
@@ -126,7 +133,7 @@ export default function RequestsList() {
     return () => {
       cancelled = true
     }
-  }, [reloadKey])
+  }, [employeeId, team, page, reloadKey])
 
   const reload = () => setReloadKey((k) => k + 1)
 
@@ -171,6 +178,23 @@ export default function RequestsList() {
         }
       />
 
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        {canDecide ? (
+          <Button
+            variant={team ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => {
+              setTeam((on) => !on)
+              setPage(1)
+            }}
+          >
+            My Team
+          </Button>
+        ) : null}
+
+        <EmployeeFilterChip employee={employee} onClear={clear} />
+      </div>
+
       <DataTable
         columns={buildColumns({
           canDecide,
@@ -184,6 +208,7 @@ export default function RequestsList() {
         error={error}
         onRowClick={(row) => setOpenId(row._id)}
         rounded="lg"
+        pagination={meta ? { ...meta, onPageChange: setPage } : undefined}
         emptyState={
           <EmptyState
             title="No time off requests yet"

@@ -7,12 +7,14 @@ import Login from '@/pages/Login'
 import InviteAccept from '@/pages/InviteAccept'
 import Dashboard from '@/pages/Dashboard'
 import AccessMatrix from '@/pages/AccessMatrix'
+import UsersList from '@/pages/users/UsersList'
 import EmployeesList from '@/pages/employees/EmployeesList'
 import SchedulesList from '@/pages/schedules/SchedulesList'
 import DepartmentsList from '@/pages/departments/DepartmentsList'
 import ContractsList from '@/pages/contracts/ContractsList'
 import StructuresList from '@/pages/salary/StructuresList'
 import StructureDetail from '@/pages/salary/StructureDetail'
+import RulesList from '@/pages/salary/RulesList'
 import PayrunsList from '@/pages/payroll/PayrunsList'
 import PayrunDetail from '@/pages/payroll/PayrunDetail'
 import PayslipsList from '@/pages/payroll/PayslipsList'
@@ -73,7 +75,16 @@ export default function App() {
         <Route path="/access" element={<AccessMatrix />} />
 
         <Route
-          path="/employees"
+          path="/users/:openId?"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <UsersList />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/employees/:openId?"
           element={
             <ProtectedRoute roles={HR}>
               <EmployeesList />
@@ -81,7 +92,7 @@ export default function App() {
           }
         />
         <Route
-          path="/contracts"
+          path="/contracts/:openId?"
           element={
             <ProtectedRoute roles={HR}>
               <ContractsList />
@@ -89,7 +100,7 @@ export default function App() {
           }
         />
         <Route
-          path="/departments"
+          path="/departments/:openId?"
           element={
             <ProtectedRoute roles={HR}>
               <DepartmentsList />
@@ -97,7 +108,7 @@ export default function App() {
           }
         />
         <Route
-          path="/working-schedules"
+          path="/working-schedules/:openId?"
           element={
             <ProtectedRoute roles={HR}>
               <SchedulesList />
@@ -114,7 +125,15 @@ export default function App() {
           }
         />
         <Route
-          path="/attendance"
+          path="/salary-structures/new"
+          element={
+            <ProtectedRoute roles={PAYROLL}>
+              <StructuresList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/attendance/:openId?"
           element={
             <ProtectedRoute>
               <AttendanceList />
@@ -123,7 +142,7 @@ export default function App() {
         />
 
         <Route
-          path="/time-off/requests"
+          path="/time-off/requests/:openId?"
           element={
             <ProtectedRoute>
               <TimeOffRequestsList />
@@ -131,7 +150,7 @@ export default function App() {
           }
         />
         <Route
-          path="/time-off/allocations"
+          path="/time-off/allocations/:openId?"
           element={
             <ProtectedRoute>
               <AllocationsList />
@@ -139,7 +158,7 @@ export default function App() {
           }
         />
         <Route
-          path="/time-off/types"
+          path="/time-off/types/:openId?"
           element={
             <ProtectedRoute roles={HR}>
               <TimeOffTypesList />
@@ -181,7 +200,16 @@ export default function App() {
         />
 
         <Route
-          path="/salary-structures/:id"
+          path="/salary-rules"
+          element={
+            <ProtectedRoute roles={PAYROLL}>
+              <RulesList />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/salary-structures/:id/:openId?"
           element={
             <ProtectedRoute roles={PAYROLL}>
               <StructureDetail />

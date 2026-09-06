@@ -36,7 +36,11 @@ export function findOverlapping({ employee, startDate, endDate, excludeId }) {
 
 const asDate = (value) => (value ? new Date(value) : null)
 
-const format = (date) => (date ? new Date(date).toISOString().slice(0, 10) : 'open-ended')
+// toISOString() would shift the day for anyone east of UTC.
+const format = (date) =>
+  date
+    ? new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : 'open-ended'
 
 /**
  * Rejects a save that would leave an employee with two running contracts

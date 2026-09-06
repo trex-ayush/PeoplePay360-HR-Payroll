@@ -21,6 +21,7 @@ import { StructureDrawer } from './StructureDrawer'
 import { salaryRulesApi, salaryStructuresApi } from '@/api/hr'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useDrawerRoute } from '@/hooks/useDrawerRoute'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { RULE_CATEGORIES } from '@/config/constants'
 
@@ -162,8 +163,12 @@ export default function StructureDetail() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [openRuleId, setOpenRuleId] = useState(null)
-  const [editingStructure, setEditingStructure] = useState(false)
+  const [openId, setOpenId] = useDrawerRoute(`/salary-structures/${id}`)
+
+  // One segment carries both drawers on this page: "edit" is the structure form,
+  // anything else names a rule.
+  const editingStructure = openId === 'edit'
+  const openRuleId = editingStructure ? null : openId
 
   usePageTitle(structure?.name ?? 'Salary structure')
 
@@ -230,7 +235,7 @@ export default function StructureDetail() {
           <Button
             variant="secondary"
             iconLeft={<Pencil size={14} />}
-            onClick={() => setEditingStructure(true)}
+            onClick={() => setOpenId('edit')}
           >
             Edit
           </Button>
@@ -266,7 +271,7 @@ export default function StructureDetail() {
           variant="secondary"
           size="sm"
           iconLeft={<Plus size={14} />}
-          onClick={() => setOpenRuleId('new')}
+          onClick={() => setOpenId('new')}
         >
           Add rule
         </Button>
@@ -275,14 +280,14 @@ export default function StructureDetail() {
       <div className="mb-6">
         <DataTable
           columns={ruleColumns({
-            onEdit: (rule) => setOpenRuleId(rule._id),
+            onEdit: (rule) => setOpenId(rule._id),
             onDelete: handleDeleteRule,
           })}
           rows={rules}
           rowKey={(row) => row._id}
           density="compact"
           rounded="lg"
-          onRowClick={(rule) => setOpenRuleId(rule._id)}
+          onRowClick={(rule) => setOpenId(rule._id)}
           emptyState={
             <EmptyState
               title="No rules yet"
@@ -299,9 +304,9 @@ export default function StructureDetail() {
           ruleId={openRuleId}
           structureId={id}
           siblings={rules}
-          onClose={() => setOpenRuleId(null)}
+          onClose={() => setOpenId(null)}
           onSaved={() => {
-            setOpenRuleId(null)
+            setOpenId(null)
             setReloadKey((k) => k + 1)
           }}
         />
@@ -310,9 +315,9 @@ export default function StructureDetail() {
       {editingStructure ? (
         <StructureDrawer
           structureId={id}
-          onClose={() => setEditingStructure(false)}
+          onClose={() => setOpenId(null)}
           onSaved={() => {
-            setEditingStructure(false)
+            setOpenId(null)
             setReloadKey((k) => k + 1)
           }}
         />

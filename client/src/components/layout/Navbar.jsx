@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
 import { Avatar, Dropdown, DropdownItem, DropdownDivider } from '@/components/ui'
+import { AttendanceQuickAction } from '@/components/AttendanceQuickAction'
 import { ROLE_LABELS, ROUTES } from '@/config/constants'
 import { env } from '@/config/env'
 import { cn } from '@/utils/cn'
@@ -30,6 +31,8 @@ export function Navbar() {
       </Link>
 
       <div className="flex-1" />
+
+      <AttendanceQuickAction />
 
       <Dropdown
         align="right"

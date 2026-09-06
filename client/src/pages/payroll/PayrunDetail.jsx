@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { BadgeCheck, Calculator, Wallet } from 'lucide-react'
+import { AlertTriangle, BadgeCheck, Calculator, Printer, Send, Wallet } from 'lucide-react'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { PageHeader } from '@/components/layout/PageHeader'
 import {
@@ -29,10 +29,18 @@ const money = (value) =>
 const day = (value) =>
   new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 
+// The mockup shows a short flag in the row and the detail in the panel above.
+const WARNING_LABELS = {
+  missing_bank_details: 'A/C missing',
+  duplicate_payslip: 'Duplicate',
+  no_active_contract: 'No contract',
+  contract_expiring: 'Contract ends',
+}
+
 const lineAmount = (payslip, category) =>
   payslip.lines.filter((l) => l.category === category).reduce((total, l) => total + l.amount, 0)
 
-const payslipColumns = [
+const payslipColumns = ({ warningFor, onPrint }) => [
   {
     key: 'employee',
     header: 'Employee',
@@ -42,6 +50,24 @@ const payslipColumns = [
         <p className="font-mono text-xs text-neutral-500">{row.employee?.code}</p>
       </div>
     ),
+  },
+  {
+    key: 'warning',
+    header: 'Warning',
+    cell: (row) => {
+      const warning = warningFor(row.employee?._id)
+      return warning ? (
+        <span
+          title={warning.message}
+          className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400"
+        >
+          <AlertTriangle size={12} />
+          {WARNING_LABELS[warning.type] ?? 'Check'}
+        </span>
+      ) : (
+        <span className="text-neutral-300 dark:text-neutral-600">—</span>
+      )
+    },
   },
   {
     key: 'workedDays',
@@ -77,11 +103,29 @@ const payslipColumns = [
     cell: (row) => {
       const meta = PAYSLIP_STATES.find((s) => s.value === row.state)
       return (
-        <Badge tone={meta?.tone ?? 'neutral'} size="sm">
-          {meta?.label ?? row.state}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge tone={meta?.tone ?? 'neutral'} size="sm">
+            {meta?.label ?? row.state}
+          </Badge>
+          {row.emailedAt ? (
+            <span className="text-[10px] uppercase tracking-wider text-neutral-400">emailed</span>
+          ) : null}
+        </div>
       )
     },
+  },
+  {
+    key: 'pdf',
+    header: '',
+    width: 60,
+    align: 'right',
+    cell: (row) => (
+      <span onClick={(e) => e.stopPropagation()} role="presentation">
+        <Button size="sm" variant="ghost" iconLeft={<Printer size={13} />} onClick={() => onPrint(row._id)}>
+          PDF
+        </Button>
+      </span>
+    ),
   },
 ]
 
@@ -166,6 +210,8 @@ export default function PayrunDetail() {
   const meta = PAYRUN_STATES.find((s) => s.value === payrun.state)
   const locked = payrun.state === 'validated' || payrun.state === 'paid'
   const netTotal = payslips.reduce((total, p) => total + p.netAmount, 0)
+  // Anything still unpaid is what a second Mark Paid would settle.
+  const heldBack = payslips.some((p) => p.state !== 'paid')
 
   return (
     <PageContainer>
@@ -203,12 +249,33 @@ export default function PayrunDetail() {
               Validate
             </Button>
             <Button
+              variant="secondary"
               iconLeft={<Wallet size={14} />}
-              disabled={payrun.state !== 'validated'}
+              disabled={!['validated', 'paid'].includes(payrun.state) || !heldBack}
               loading={running === 'markPaid'}
-              onClick={() => run('markPaid', payrunsApi.markPaid, () => 'Payrun marked paid')}
+              onClick={() =>
+                run('markPaid', payrunsApi.markPaid, ({ paid, held }) =>
+                  held.length
+                    ? `${paid} paid · ${held.join(', ')} held back without a bank account`
+                    : `${paid} payslips marked paid`
+                )
+              }
             >
-              Mark Paid
+              {payrun.state === 'paid' ? 'Pay Held Back' : 'Mark Paid'}
+            </Button>
+            <Button
+              iconLeft={<Send size={14} />}
+              disabled={!locked}
+              loading={running === 'send'}
+              onClick={() =>
+                run('send', payrunsApi.sendPayslips, ({ sent, failed }) =>
+                  failed.length
+                    ? `${sent} payslips emailed · ${failed.length} could not be sent`
+                    : `${sent} payslips emailed`
+                )
+              }
+            >
+              Send Payslips
             </Button>
           </>
         }
@@ -250,7 +317,11 @@ export default function PayrunDetail() {
         </CardHeader>
         <CardBody className="p-0">
           <DataTable
-            columns={payslipColumns}
+            columns={payslipColumns({
+              warningFor: (employeeId) =>
+                warnings.find((w) => String(w.employee._id) === String(employeeId)),
+              onPrint: (payslipId) => navigate(`/payslips/${payslipId}/print`),
+            })}
             rows={payslips}
             rowKey={(row) => row._id}
             onRowClick={(row) => navigate(`/payslips/${row._id}`)}

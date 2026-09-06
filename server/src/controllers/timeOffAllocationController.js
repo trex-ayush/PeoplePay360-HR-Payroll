@@ -3,6 +3,7 @@ import { TimeOffRequest } from '../models/TimeOffRequest.js'
 import { assertNotSelf, getBalance } from '../services/leave.js'
 import { assertOwn, ownFilter } from '../middleware/auth.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
+import { paginate } from '../utils/paginate.js'
 
 const POPULATE = [
   { path: 'employee', select: 'name code' },
@@ -16,18 +17,21 @@ const withBalance = async (allocation) => ({
 })
 
 export const list = asyncHandler(async (req, res) => {
-  const { employee, type, state } = req.query
+  const { employee, type, state, page, pageSize } = req.query
 
   const filter = {}
   if (employee) filter.employee = employee
   if (type) filter.type = type
   if (state) filter.state = state
 
-  const allocations = await TimeOffAllocation.find({ ...filter, ...ownFilter(req) })
-    .populate(POPULATE)
-    .sort({ validFrom: -1 })
+  const { rows, ...meta } = await paginate(TimeOffAllocation, { ...filter, ...ownFilter(req) }, {
+    sort: { validFrom: -1 },
+    populate: POPULATE,
+    page,
+    pageSize,
+  })
 
-  res.json({ allocations: await Promise.all(allocations.map(withBalance)) })
+  res.json({ allocations: await Promise.all(rows.map(withBalance)), ...meta })
 })
 
 export const getOne = asyncHandler(async (req, res) => {

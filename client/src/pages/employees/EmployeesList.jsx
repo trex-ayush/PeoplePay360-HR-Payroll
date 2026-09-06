@@ -10,6 +10,7 @@ import {
   DeleteConfirmModal,
   EmptyState,
   Input,
+  Pagination,
   Skeleton,
 } from '@/components/ui'
 import { RowActions } from '@/components/RowActions'
@@ -17,6 +18,7 @@ import { EmployeeDrawer } from './EmployeeDrawer'
 import { employeesApi } from '@/api/hr'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useDrawerRoute } from '@/hooks/useDrawerRoute'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { storage } from '@/utils/storage'
 import { STORAGE_KEYS } from '@/config/constants'
@@ -157,8 +159,10 @@ export default function EmployeesList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
-  const [openId, setOpenId] = useState(null)
+  const [openId, setOpenId] = useDrawerRoute('/employees')
   const [reloadKey, setReloadKey] = useState(0)
+  const [page, setPage] = useState(1)
+  const [meta, setMeta] = useState(null)
 
   useEffect(() => {
     storage.setRaw(STORAGE_KEYS.employeesView, view)
@@ -169,12 +173,14 @@ export default function EmployeesList() {
     const timer = setTimeout(async () => {
       setLoading(true)
       try {
-        const { employees } = await employeesApi.list({
+        const { employees, ...meta } = await employeesApi.list({
           search,
           active: 'all',
+          page,
         })
         if (!cancelled) {
           setEmployees(employees)
+          setMeta(meta)
           setError(null)
         }
       } catch (err) {
@@ -191,7 +197,7 @@ export default function EmployeesList() {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [search, notify, reloadKey])
+  }, [search, page, notify, reloadKey])
 
   const openEmployee = (employee) => setOpenId(employee._id)
 
@@ -229,7 +235,10 @@ export default function EmployeesList() {
           <Input
             placeholder="Search employees…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
             iconLeft={<Search size={16} />}
           />
         </div>
@@ -249,6 +258,7 @@ export default function EmployeesList() {
           onRetry={() => setSearch((s) => s)}
           rounded="lg"
           stickyHeader
+          pagination={meta ? { ...meta, onPageChange: setPage } : undefined}
           emptyState={
             <EmptyState
               title={search ? `No employees match “${search}”` : 'No employees yet'}
@@ -270,16 +280,19 @@ export default function EmployeesList() {
           />
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {employees.map((employee) => (
-            <KanbanCard
-              key={employee._id}
-              employee={employee}
-              onOpen={() => openEmployee(employee)}
-              onDelete={() => setPendingDelete(employee)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {employees.map((employee) => (
+              <KanbanCard
+                key={employee._id}
+                employee={employee}
+                onOpen={() => openEmployee(employee)}
+                onDelete={() => setPendingDelete(employee)}
+              />
+            ))}
+          </div>
+          {meta ? <Pagination {...meta} onPageChange={setPage} className="px-0" /> : null}
+        </>
       )}
 
       {openId ? (

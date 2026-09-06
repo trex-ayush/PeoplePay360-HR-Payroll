@@ -11,11 +11,12 @@ const NIGHT = { lines: [{ dayOfWeek: 0, startTime: '21:00', endTime: '06:00', br
 
 const at = (time) => new Date(`2026-09-07T${time}:00`)
 
+const spell = (from, to) => ({ checkIn: at(from), checkOut: to ? at(to) : null })
+
 test('a normal day is present', () => {
   const { workedHours, overtimeHours, status } = summarise({
     schedule: OFFICE,
-    checkIn: at('09:02'),
-    checkOut: at('17:05'),
+    sessions: [spell('09:02', '17:05')],
   })
 
   assert.equal(workedHours, 8.05)
@@ -24,20 +25,19 @@ test('a normal day is present', () => {
 })
 
 test('arriving past the grace period is late', () => {
-  const { status } = summarise({ schedule: OFFICE, checkIn: at('09:31'), checkOut: at('18:00') })
+  const { status } = summarise({ schedule: OFFICE, sessions: [spell('09:31', '18:00')] })
   assert.equal(status, 'late')
 })
 
 test('arriving inside the grace period is not late', () => {
-  const { status } = summarise({ schedule: OFFICE, checkIn: at('09:15'), checkOut: at('17:00') })
+  const { status } = summarise({ schedule: OFFICE, sessions: [spell('09:15', '17:00')] })
   assert.equal(status, 'present')
 })
 
 test('working past the scheduled hours is overtime', () => {
   const { workedHours, overtimeHours, status } = summarise({
     schedule: OFFICE,
-    checkIn: at('09:00'),
-    checkOut: at('19:30'),
+    sessions: [spell('09:00', '19:30')],
   })
 
   assert.equal(workedHours, 10.5)
@@ -48,36 +48,34 @@ test('working past the scheduled hours is overtime', () => {
 test('overtime is measured against the shift, not a fixed eight hours', () => {
   const { overtimeHours } = summarise({
     schedule: NIGHT,
-    checkIn: new Date('2026-09-07T21:00:00'),
-    checkOut: new Date('2026-09-08T07:00:00'),
+    sessions: [{ checkIn: new Date('2026-09-07T21:00:00'), checkOut: new Date('2026-09-08T07:00:00') }],
   })
 
   // The shift spans nine hours, so ten on the clock leaves one of overtime.
   assert.equal(overtimeHours, 1)
 })
 
-test('a record with no check in is absent', () => {
-  const { workedHours, status } = summarise({ schedule: OFFICE, checkIn: null, checkOut: null })
+test('a record with no session is absent', () => {
+  const { workedHours, status } = summarise({ schedule: OFFICE, sessions: [] })
   assert.equal(workedHours, 0)
   assert.equal(status, 'absent')
 })
 
 test('still checked in counts no hours yet', () => {
-  const { workedHours, status } = summarise({
+  const { workedHours, checkOut, status } = summarise({
     schedule: OFFICE,
-    checkIn: at('09:00'),
-    checkOut: null,
+    sessions: [spell('09:00', null)],
   })
 
   assert.equal(workedHours, 0)
+  assert.equal(checkOut, null)
   assert.equal(status, 'present')
 })
 
 test('an employee with no schedule never reads as late or overtime', () => {
   const { overtimeHours, status } = summarise({
     schedule: null,
-    checkIn: at('11:00'),
-    checkOut: at('23:00'),
+    sessions: [spell('11:00', '23:00')],
   })
 
   assert.equal(overtimeHours, 0)
@@ -87,8 +85,12 @@ test('an employee with no schedule never reads as late or overtime', () => {
 test('working on a day the schedule does not cover is overtime end to end', () => {
   const saturday = summarise({
     schedule: OFFICE,
-    checkIn: new Date('2026-09-12T09:00:00'),
-    checkOut: new Date('2026-09-12T21:00:00'),
+    sessions: [
+      {
+        checkIn: new Date('2026-09-12T09:00:00'),
+        checkOut: new Date('2026-09-12T21:00:00'),
+      },
+    ],
   })
 
   assert.equal(saturday.workedHours, 12)
@@ -97,15 +99,14 @@ test('working on a day the schedule does not cover is overtime end to end', () =
 })
 
 test('coming in early on a working day is not late', () => {
-  const { status } = summarise({ schedule: OFFICE, checkIn: at('03:00'), checkOut: at('07:00') })
+  const { status } = summarise({ schedule: OFFICE, sessions: [spell('03:00', '07:00')] })
   assert.equal(status, 'present')
 })
 
 test('leaving well before the shift ends is a short day', () => {
   const { workedHours, shortHours, status } = summarise({
     schedule: OFFICE,
-    checkIn: at('09:00'),
-    checkOut: at('13:00'),
+    sessions: [spell('09:00', '13:00')],
   })
 
   assert.equal(workedHours, 4)
@@ -114,22 +115,79 @@ test('leaving well before the shift ends is a short day', () => {
 })
 
 test('a few minutes short is not a short day', () => {
-  const { shortHours } = summarise({
-    schedule: OFFICE,
-    checkIn: at('09:00'),
-    checkOut: at('17:50'),
-  })
-
+  const { shortHours } = summarise({ schedule: OFFICE, sessions: [spell('09:00', '17:50')] })
   assert.equal(shortHours, 0)
 })
 
 test('a rest day is never short, only overtime', () => {
   const { overtimeHours, shortHours } = summarise({
     schedule: OFFICE,
-    checkIn: new Date('2026-09-12T09:00:00'),
-    checkOut: new Date('2026-09-12T11:00:00'),
+    sessions: [
+      {
+        checkIn: new Date('2026-09-12T09:00:00'),
+        checkOut: new Date('2026-09-12T11:00:00'),
+      },
+    ],
   })
 
   assert.equal(overtimeHours, 2)
   assert.equal(shortHours, 0)
+})
+
+test('several spells in a day add up', () => {
+  const { workedHours, checkIn, checkOut } = summarise({
+    schedule: OFFICE,
+    sessions: [spell('09:00', '13:00'), spell('14:00', '19:00')],
+  })
+
+  assert.equal(workedHours, 9)
+  assert.equal(checkIn.getHours(), 9)
+  assert.equal(checkOut.getHours(), 19)
+})
+
+test('clocking out for lunch is not punished as a short day', () => {
+  const stayedIn = summarise({ schedule: OFFICE, sessions: [spell('09:00', '18:00')] })
+  const tookLunch = summarise({
+    schedule: OFFICE,
+    sessions: [spell('09:00', '13:00'), spell('14:00', '18:00')],
+  })
+
+  // One worked nine hours with the break inside, the other eight without it.
+  // Both did the same day, so neither is short and neither is over.
+  assert.equal(stayedIn.shortHours, 0)
+  assert.equal(stayedIn.overtimeHours, 0)
+  assert.equal(tookLunch.shortHours, 0)
+  assert.equal(tookLunch.overtimeHours, 0)
+})
+
+test('the lunch break between spells is not paid for', () => {
+  const oneSpell = summarise({ schedule: OFFICE, sessions: [spell('09:00', '18:00')] })
+  const twoSpells = summarise({
+    schedule: OFFICE,
+    sessions: [spell('09:00', '13:00'), spell('14:00', '18:00')],
+  })
+
+  assert.equal(oneSpell.workedHours, 9)
+  assert.equal(twoSpells.workedHours, 8)
+})
+
+test('a reopened spell keeps the hours already earned', () => {
+  const { workedHours, checkOut, status } = summarise({
+    schedule: OFFICE,
+    sessions: [spell('09:00', '13:00'), spell('14:00', null)],
+  })
+
+  assert.equal(workedHours, 4)
+  assert.equal(checkOut, null)
+  assert.equal(status, 'present')
+})
+
+test('sessions given out of order still read first in and last out', () => {
+  const { checkIn, checkOut } = summarise({
+    schedule: OFFICE,
+    sessions: [spell('14:00', '18:00'), spell('09:00', '13:00')],
+  })
+
+  assert.equal(checkIn.getHours(), 9)
+  assert.equal(checkOut.getHours(), 18)
 })

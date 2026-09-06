@@ -8,8 +8,9 @@ import { TypeDrawer } from './TypeDrawer'
 import { timeOffTypesApi } from '@/api/hr'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useDrawerRoute } from '@/hooks/useDrawerRoute'
 import { getErrorMessage } from '@/utils/errorUtils'
-import { TIMEOFF_UNITS } from '@/config/constants'
+import { APPROVAL_BY, TIMEOFF_COLORS, TIMEOFF_UNITS } from '@/config/constants'
 
 const buildColumns = ({ onEdit, onDelete }) => [
   {
@@ -17,7 +18,17 @@ const buildColumns = ({ onEdit, onDelete }) => [
     header: 'Type',
     sortable: true,
     compare: (a, b) => a.name.localeCompare(b.name),
-    cell: (row) => <span className="font-medium">{row.name}</span>,
+    cell: (row) => (
+      <span className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${
+            TIMEOFF_COLORS.find((c) => c.value === row.color)?.swatch ?? 'bg-neutral-400'
+          }`}
+        />
+        <span className="font-medium">{row.name}</span>
+      </span>
+    ),
   },
   {
     key: 'unit',
@@ -32,6 +43,11 @@ const buildColumns = ({ onEdit, onDelete }) => [
         {row.requiresAllocation ? 'Required' : 'No'}
       </Badge>
     ),
+  },
+  {
+    key: 'approvalBy',
+    header: 'Approval',
+    cell: (row) => APPROVAL_BY.find((a) => a.value === row.approvalBy)?.label ?? row.approvalBy,
   },
   {
     key: 'payrollCode',
@@ -65,7 +81,7 @@ export default function TypesList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
-  const [openId, setOpenId] = useState(null)
+  const [openId, setOpenId] = useDrawerRoute('/time-off/types')
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {

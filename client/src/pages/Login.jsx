@@ -69,7 +69,7 @@ export default function Login() {
         <img
           src="/login-illustration.png"
           alt=""
-          className="max-h-[46vh] min-h-0 w-full object-cover object-bottom"
+          className="w-full flex-shrink-0"
         />
       </div>
 

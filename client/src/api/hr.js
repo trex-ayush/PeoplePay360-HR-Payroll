@@ -21,6 +21,15 @@ export const employeesApi = {
   grant: (id, roles) => api.post(`/employees/${id}/access`, { roles }),
 }
 
+export const usersApi = {
+  list: (params) => api.get(`/users${query(params)}`),
+  get: (id) => api.get(`/users/${id}`),
+  availableEmployees: () => api.get('/users/available-employees'),
+  create: (body) => api.post('/users', body),
+  update: (id, body) => api.patch(`/users/${id}`, body),
+  invite: (id) => api.post(`/users/${id}/invite`),
+}
+
 export const departmentsApi = {
   list: (params) => api.get(`/departments${query(params)}`),
   create: (body) => api.post('/departments', body),
@@ -70,6 +79,7 @@ export const payrunsApi = {
   compute: (id) => api.post(`/payruns/${id}/compute`),
   validate: (id) => api.post(`/payruns/${id}/validate`),
   markPaid: (id) => api.post(`/payruns/${id}/mark-paid`),
+  sendPayslips: (id) => api.post(`/payruns/${id}/send-payslips`),
   remove: (id) => api.delete(`/payruns/${id}`),
   warnings: (id) => api.get(`/payruns/${id}/warnings`),
 }
@@ -116,6 +126,10 @@ export const attendanceApi = {
   create: (body) => api.post('/attendance', body),
   update: (id, body) => api.patch(`/attendance/${id}`, body),
   remove: (id) => api.delete(`/attendance/${id}`),
+  corrections: (params) => api.get(`/attendance/corrections${query(params)}`),
+  requestCorrection: (id, body) => api.post(`/attendance/${id}/corrections`, body),
+  approveCorrection: (id) => api.post(`/attendance/corrections/${id}/approve`),
+  refuseCorrection: (id) => api.post(`/attendance/corrections/${id}/refuse`),
 }
 
 export const dashboardApi = {

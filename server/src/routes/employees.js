@@ -9,6 +9,7 @@ import {
   remove,
   nextCode,
   access,
+  related,
   grant,
 } from '../controllers/employeeController.js'
 
@@ -23,6 +24,7 @@ router.get('/next-code', nextCode)
 router.get('/', list)
 router.get('/:id', getOne)
 router.post('/', create)
+router.get('/:id/related', related)
 router.get('/:id/access', access)
 router.post('/:id/access', grant)
 

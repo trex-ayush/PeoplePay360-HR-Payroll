@@ -9,6 +9,7 @@ import { ContractDrawer } from './ContractDrawer'
 import { contractsApi, employeesApi } from '@/api/hr'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useDrawerRoute } from '@/hooks/useDrawerRoute'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { CONTRACT_STATES } from '@/config/constants'
 
@@ -85,7 +86,9 @@ export default function ContractsList() {
   const [error, setError] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [openId, setOpenId] = useState(null)
+  const [openId, setOpenId] = useDrawerRoute('/contracts')
+  const [page, setPage] = useState(1)
+  const [meta, setMeta] = useState(null)
 
   useEffect(() => {
     if (!employeeId) {
@@ -103,9 +106,14 @@ export default function ContractsList() {
     const timer = setTimeout(async () => {
       setLoading(true)
       try {
-        const { contracts } = await contractsApi.list({ employee: employeeId, search })
+        const { contracts, ...meta } = await contractsApi.list({
+          employee: employeeId,
+          search,
+          page,
+        })
         if (!cancelled) {
           setContracts(contracts)
+          setMeta(meta)
           setError(null)
         }
       } catch (err) {
@@ -119,7 +127,7 @@ export default function ContractsList() {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [employeeId, search, reloadKey])
+  }, [employeeId, search, page, reloadKey])
 
   async function handleDelete() {
     try {
@@ -148,7 +156,10 @@ export default function ContractsList() {
           <Input
             placeholder="Search contract reference…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
             iconLeft={<Search size={16} />}
           />
         </div>
@@ -176,6 +187,7 @@ export default function ContractsList() {
         error={error}
         onRowClick={(row) => setOpenId(row._id)}
         rounded="lg"
+        pagination={meta ? { ...meta, onPageChange: setPage } : undefined}
         emptyState={
           <EmptyState
             title={employee ? `No contracts for ${employee.name}` : 'No contracts yet'}

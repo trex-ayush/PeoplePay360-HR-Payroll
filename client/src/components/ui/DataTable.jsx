@@ -3,6 +3,7 @@ import { cn } from '@/utils/cn'
 import { Skeleton } from './Skeleton'
 import { EmptyState } from './EmptyState'
 import { ErrorState } from './ErrorState'
+import { Pagination } from './Pagination'
 
 const DENSITY_CELL = {
   compact: 'px-3 py-1.5',
@@ -39,6 +40,7 @@ export function DataTable({
   stickyHeader = false,
   density = 'normal',
   rounded = 'sharp',
+  pagination,
   className,
 }) {
   const [internalSort, setInternalSort] = useState(undefined)
@@ -164,6 +166,13 @@ export function DataTable({
           </tbody>
         </table>
       </div>
+
+      {pagination && !loading && pagination.total > 0 ? (
+        <Pagination
+          {...pagination}
+          className="border-t border-neutral-200 dark:border-neutral-700"
+        />
+      ) : null}
     </div>
   )
 }

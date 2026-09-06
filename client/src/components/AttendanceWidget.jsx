@@ -57,7 +57,11 @@ export function AttendanceWidget() {
     try {
       const { record } = await attendanceApi[action]()
       setState({ record, linked: true })
-      notify.success(action === 'checkIn' ? `Checked in at ${clock(record.checkIn)}` : `Checked out · ${duration(record.workedHours)} today`)
+      notify.success(
+        action === 'checkIn'
+          ? `Checked in at ${clock(record.checkIn)}`
+          : `Checked out · ${duration(record.workedHours)} today`
+      )
     } catch (err) {
       notify.error(getErrorMessage(err))
     } finally {
@@ -76,7 +80,11 @@ export function AttendanceWidget() {
             Welcome back, {user.name.split(' ')[0]}!
           </p>
           <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+            {new Date().toLocaleDateString('en-IN', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })}
           </p>
         </div>
         {statusMeta ? (
@@ -110,15 +118,15 @@ export function AttendanceWidget() {
             </div>
           </div>
 
-          {record?.checkOut ? (
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              Checked out at {clock(record.checkOut)}
-              {record.overtimeHours ? ` · ${duration(record.overtimeHours)} overtime` : ''}
-              {record.shortHours ? ` · ${duration(record.shortHours)} short of the shift` : ''}
-              <br />
-              Ask HR to correct this day if the times are wrong.
-            </p>
-          ) : (
+          <div className="flex flex-col items-end gap-1.5">
+            {record?.checkOut ? (
+              <p className="text-right text-xs text-neutral-500 dark:text-neutral-400">
+                Last out at {clock(record.checkOut)}
+                {record.overtimeHours ? ` · ${duration(record.overtimeHours)} overtime` : ''}
+                {record.shortHours ? ` · ${duration(record.shortHours)} short of the shift` : ''}
+              </p>
+            ) : null}
+
             <Button
               size="lg"
               variant={running ? 'secondary' : 'primary'}
@@ -126,19 +134,20 @@ export function AttendanceWidget() {
               iconLeft={running ? <LogOut size={16} /> : <LogIn size={16} />}
               onClick={() => (running ? setConfirming(true) : mark('checkIn'))}
             >
-              {running ? 'Check Out' : 'Check In'}
+              {running ? 'Check Out' : record?.checkOut ? 'Check In Again' : 'Check In'}
             </Button>
-          )}
+          </div>
         </div>
       )}
 
-      {/* Checking out ends the day and cannot be undone by the employee. */}
+      {/* Ending a spell is final for the employee, but the day is not: checking in
+          again starts another one, which is how a lunch break is recorded. */}
       <ConfirmModal
         isOpen={confirming}
         onClose={() => setConfirming(false)}
         onConfirm={() => mark('checkOut')}
         title={`Check out at ${new Date(now).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}?`}
-        description={`That closes today at ${duration(elapsed)}. Only HR can change the times afterwards.`}
+        description={`That ends this spell at ${duration(elapsed)}. You can check in again later; only HR can change a time once it is set.`}
         confirmLabel="Check out"
         confirmVariant="primary"
       />

@@ -1,15 +1,30 @@
 import { useEffect, useState } from 'react'
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { Link } from 'react-router-dom'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { AttendanceWidget } from '@/components/AttendanceWidget'
-import { Badge, Card, CardBody, CardHeader, ErrorState, Input, Skeleton } from '@/components/ui'
+import { Card, CardBody, CardHeader, ErrorState, Input, Skeleton } from '@/components/ui'
 import { dashboardApi, departmentsApi } from '@/api/hr'
 import { useAuth } from '@/context/AuthContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { ATTENDANCE_STATUSES, EMPLOYEE_TYPES } from '@/config/constants'
 import { cn } from '@/utils/cn'
+import { inUnits } from '@/utils/units'
 
 const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
 
@@ -95,29 +110,184 @@ function Kpi({ label, value, hint }) {
   )
 }
 
-function Bars({ rows, max, format }) {
-  if (!rows.length) {
-    return <p className="text-sm text-neutral-500 dark:text-neutral-400">Nothing in this period.</p>
-  }
+const ATTENDANCE_COLORS = {
+  present: '#10B981',
+  late: '#F59E0B',
+  overtime: '#3B82F6',
+  absent: '#EF4444',
+}
+
+const EMPTY = (
+  <p className="text-sm text-neutral-500 dark:text-neutral-400">
+    No payroll has been paid in this period yet.
+  </p>
+)
+
+// Axis and grid colours follow the theme class the same way the starter's charts do.
+const isDark = () => document.documentElement.classList.contains('dark')
+const axisColor = () => (isDark() ? '#9CA3AF' : '#6B7280')
+const gridColor = () => (isDark() ? '#374151' : '#E5E7EB')
+
+function ChartTooltip({ active, payload, label, format }) {
+  if (!active || !payload?.length) return null
 
   return (
-    <div className="space-y-2.5">
-      {rows.map((row) => (
-        <div key={row.label}>
-          <div className="mb-1 flex items-baseline justify-between gap-3 text-sm">
-            <span className="truncate">{row.label}</span>
-            <span className="flex-shrink-0 tabular-nums text-neutral-600 dark:text-neutral-300">
-              {format(row.value)}
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-700">
-            <div
-              className="h-full rounded-full bg-neutral-900 dark:bg-neutral-100"
-              style={{ width: `${max ? (row.value / max) * 100 : 0}%` }}
-            />
-          </div>
-        </div>
+    <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs shadow-lg dark:border-neutral-700 dark:bg-neutral-800">
+      <p className="mb-1 font-medium text-neutral-900 dark:text-white">{label}</p>
+      {payload.map((entry) => (
+        <p key={entry.name} className="text-neutral-600 dark:text-neutral-400">
+          <span
+            className="mr-1.5 inline-block h-2 w-2 rounded-full"
+            style={{ backgroundColor: entry.color ?? entry.payload?.fill }}
+          />
+          <span className="font-medium text-neutral-900 dark:text-white">
+            {format ? format(entry.value) : entry.value}
+          </span>
+        </p>
       ))}
+    </div>
+  )
+}
+
+function TrendChart({ rows, format }) {
+  if (!rows.some((row) => row.value)) return EMPTY
+
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <AreaChart data={rows} margin={{ top: 5, right: 5, left: -12, bottom: 0 }}>
+        <defs>
+          <linearGradient id="netTrend" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.25} />
+            <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor()} vertical={false} />
+        <XAxis
+          dataKey="label"
+          tick={{ fontSize: 11, fill: axisColor() }}
+          axisLine={{ stroke: gridColor() }}
+          tickLine={false}
+        />
+        <YAxis
+          tick={{ fontSize: 11, fill: axisColor() }}
+          axisLine={false}
+          tickLine={false}
+          tickFormatter={format}
+        />
+        <Tooltip content={<ChartTooltip format={format} />} />
+        <Area
+          type="monotone"
+          dataKey="value"
+          name="Net paid"
+          stroke="#3B82F6"
+          strokeWidth={2}
+          fill="url(#netTrend)"
+          dot={{ r: 3, fill: '#3B82F6', strokeWidth: 2, stroke: '#fff' }}
+          activeDot={{ r: 5, strokeWidth: 2, stroke: '#fff' }}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
+  )
+}
+
+function DepartmentChart({ rows, format }) {
+  if (!rows.some((row) => row.value)) return EMPTY
+
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={rows} margin={{ top: 5, right: 5, left: -12, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke={gridColor()} vertical={false} />
+        <XAxis
+          dataKey="label"
+          tick={{ fontSize: 11, fill: axisColor() }}
+          axisLine={{ stroke: gridColor() }}
+          tickLine={false}
+        />
+        <YAxis
+          tick={{ fontSize: 11, fill: axisColor() }}
+          axisLine={false}
+          tickLine={false}
+          tickFormatter={format}
+        />
+        <Tooltip cursor={{ fill: gridColor(), opacity: 0.4 }} content={<ChartTooltip format={format} />} />
+        <Bar dataKey="value" name="Salary cost" fill="#3B82F6" radius={[4, 4, 0, 0]} maxBarSize={56} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
+function AttendanceDonut({ rows }) {
+  const total = rows.reduce((sum, row) => sum + row.value, 0)
+  if (!total) return EMPTY
+
+  return (
+    <div className="flex items-center gap-4">
+      {/* ResponsiveContainer measures its parent, so the parent is what carries the size. */}
+      <div className="h-[170px] w-1/2 flex-shrink-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={rows}
+              dataKey="value"
+              nameKey="label"
+              innerRadius={45}
+              outerRadius={70}
+              paddingAngle={2}
+            >
+              {rows.map((row) => (
+                <Cell key={row.label} fill={row.color} stroke="none" />
+              ))}
+            </Pie>
+            <Tooltip content={<ChartTooltip />} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <ul className="flex-1 space-y-2 text-sm">
+        {rows.map((row) => (
+          <li key={row.label} className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="h-2.5 w-2.5 flex-shrink-0 rounded-sm"
+              style={{ backgroundColor: row.color }}
+            />
+            <span className="flex-1 text-neutral-600 dark:text-neutral-300">{row.label}</span>
+            <span className="font-medium tabular-nums">{row.value}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function StackedBar({ rows }) {
+  const total = rows.reduce((sum, row) => sum + row.value, 0)
+  if (!total) return EMPTY
+
+  return (
+    <div>
+      <div className="flex h-3 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-700">
+        {rows.map((row) =>
+          row.value ? (
+            <div
+              key={row.label}
+              className={row.fill}
+              style={{ width: `${(row.value / total) * 100}%` }}
+              title={`${row.label}: ${row.value}`}
+            />
+          ) : null
+        )}
+      </div>
+
+      <ul className="mt-4 space-y-2 text-sm">
+        {rows.map((row) => (
+          <li key={row.label} className="flex items-center gap-2">
+            <span aria-hidden="true" className={`h-2.5 w-2.5 flex-shrink-0 rounded-sm ${row.fill}`} />
+            <span className="flex-1 text-neutral-600 dark:text-neutral-300">{row.label}</span>
+            <span className="font-medium tabular-nums">{row.value}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -143,8 +313,8 @@ export default function Dashboard() {
 
   const isHr = user.roles.some((role) => HR_ROLES.includes(role))
 
-  const [preset, setPreset] = useState('month')
-  const [filters, setFilters] = useState({ ...rangeOf('month'), department: '', employeeType: '' })
+  const [preset, setPreset] = useState('year')
+  const [filters, setFilters] = useState({ ...rangeOf('year'), department: '', employeeType: '' })
   const [departments, setDepartments] = useState([])
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(isHr)
@@ -185,8 +355,12 @@ export default function Dashboard() {
   return (
     <PageContainer>
       <PageHeader
-        title="Payroll Dashboard"
-        description="Live across employees, contracts, attendance, time off and payroll."
+        title={isHr ? 'Payroll Dashboard' : 'Home'}
+        description={
+          isHr
+            ? 'Live across employees, contracts, attendance, time off and payroll.'
+            : 'Mark your day here, then check your leave from the Time Off menu.'
+        }
       />
 
       <div className="mb-6">
@@ -293,7 +467,7 @@ export default function Dashboard() {
             />
             <Kpi
               label="Approved Time Off"
-              value={`${data.kpis.approvedTimeOffDays} days`}
+              value={inUnits(data.kpis.approvedTimeOffDays)}
               hint="Across selected period"
             />
             <Kpi
@@ -315,17 +489,35 @@ export default function Dashboard() {
                   Across the selected period
                 </p>
               </CardHeader>
-              <CardBody className="flex flex-wrap gap-4">
-                {ATTENDANCE_STATUSES.map((status) => (
-                  <div key={status.value} className="min-w-[70px]">
-                    <p className="text-2xl font-semibold tabular-nums">
-                      {data.attendance[status.value]}
-                    </p>
-                    <Badge tone={status.tone} size="sm">
-                      {status.label}
-                    </Badge>
+              <CardBody>
+                {/* One day is one of these four, so the split reads better as parts of
+                    a whole than as columns where Present dwarfs the exceptions. */}
+                <AttendanceDonut
+                  rows={ATTENDANCE_STATUSES.map((status) => ({
+                    label: status.label,
+                    value: data.attendance[status.value],
+                    color: ATTENDANCE_COLORS[status.value],
+                  }))}
+                />
+
+                <dl className="mt-4 space-y-1 border-t border-neutral-200 pt-3 text-xs text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+                  <div className="flex justify-between">
+                    <dt>Missing check-outs</dt>
+                    <dd className="tabular-nums">{data.attendance.missingCheckOuts}</dd>
                   </div>
-                ))}
+                  <div className="flex justify-between">
+                    <dt>Manual attendance edits</dt>
+                    <dd className="tabular-nums">{data.attendance.manualEdits}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt>Attendance coverage</dt>
+                    <dd className="tabular-nums">
+                      {data.kpis.attendanceHealth === null
+                        ? '—'
+                        : `${data.kpis.attendanceHealth}%`}
+                    </dd>
+                  </div>
+                </dl>
               </CardBody>
             </Card>
 
@@ -345,6 +537,15 @@ export default function Dashboard() {
                   <span className="font-semibold tabular-nums">{data.alerts.pendingTimeOff}</span>
                 </Link>
                 <Link
+                  to="/attendance"
+                  className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-700/40"
+                >
+                  <span>Attendance corrections waiting</span>
+                  <span className="font-semibold tabular-nums">
+                    {data.alerts.pendingCorrections}
+                  </span>
+                </Link>
+                <Link
                   to="/contracts"
                   className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-700/40"
                 >
@@ -360,6 +561,84 @@ export default function Dashboard() {
                     {data.alerts.employeesWithoutBankAccount}
                   </span>
                 </Link>
+                <Link
+                  to="/payslips"
+                  className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-700/40"
+                >
+                  <span>Duplicate payslip warnings</span>
+                  <span className="font-semibold tabular-nums">{data.alerts.duplicatePayslips}</span>
+                </Link>
+                <Link
+                  to="/payruns"
+                  className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-700/40"
+                >
+                  <span>Payruns still not validated</span>
+                  <span className="font-semibold tabular-nums">
+                    {data.alerts.payrunsNotValidated}
+                  </span>
+                </Link>
+              </CardBody>
+            </Card>
+          </div>
+
+          <div className="mb-6 grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <h2 className="font-semibold">Time Off Overview</h2>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  Leave taken and what is left, across the selected period
+                </p>
+              </CardHeader>
+              <CardBody>
+                {data.timeOff.length ? (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-xs uppercase tracking-wider text-neutral-500">
+                        <th className="pb-2 text-left font-medium">Type</th>
+                        <th className="pb-2 text-right font-medium">Approved</th>
+                        <th className="pb-2 text-right font-medium">Pending</th>
+                        <th className="pb-2 text-right font-medium">Remaining</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                      {data.timeOff.map((row) => (
+                        <tr key={row.type}>
+                          <td className="py-2">{row.type}</td>
+                          <td className="py-2 text-right tabular-nums">{inUnits(row.approved)}</td>
+                          <td className="py-2 text-right tabular-nums">{row.pending}</td>
+                          <td className="py-2 text-right font-medium tabular-nums">
+                            {row.remaining === null ? 'N/A' : inUnits(row.remaining)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                    No leave types measured in days yet.
+                  </p>
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <h2 className="font-semibold">Payslip Status</h2>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  How the payslips in this period stand
+                </p>
+              </CardHeader>
+              <CardBody>
+                <StackedBar
+                  rows={[
+                    { label: 'Paid', value: data.payslipStatus.paid, fill: 'bg-emerald-500' },
+                    {
+                      label: 'Awaiting payment',
+                      value: data.payslipStatus.done,
+                      fill: 'bg-blue-500',
+                    },
+                  ]}
+                />
               </CardBody>
             </Card>
           </div>
@@ -373,9 +652,8 @@ export default function Dashboard() {
                 </p>
               </CardHeader>
               <CardBody>
-                <Bars
+                <TrendChart
                   rows={data.trend.map((t) => ({ label: monthLabel(t.month), value: t.net }))}
-                  max={Math.max(...data.trend.map((t) => t.net), 1)}
                   format={compact}
                 />
               </CardBody>
@@ -383,20 +661,49 @@ export default function Dashboard() {
 
             <Card>
               <CardHeader>
-                <h2 className="font-semibold">Department Overview</h2>
+                <h2 className="font-semibold">Salary Cost by Department</h2>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                  Headcount and salary cost
+                  Payslips grouped by the employee’s department
                 </p>
               </CardHeader>
               <CardBody>
-                <Bars
-                  rows={data.byDepartment.map((d) => ({
-                    label: `${d.department} · ${d.headcount}`,
-                    value: d.salary,
-                  }))}
-                  max={Math.max(...data.byDepartment.map((d) => d.salary), 1)}
+                <DepartmentChart
+                  rows={data.byDepartment.map((d) => ({ label: d.department, value: d.salary }))}
                   format={compact}
                 />
+              </CardBody>
+            </Card>
+          </div>
+
+          <div className="mt-6">
+            <Card>
+              <CardHeader>
+                <h2 className="font-semibold">Department Overview</h2>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  Headcount and monthly salary, from employees, contracts and payslip totals
+                </p>
+              </CardHeader>
+              <CardBody>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs uppercase tracking-wider text-neutral-500">
+                      <th className="pb-2 text-left font-medium">Department</th>
+                      <th className="pb-2 text-right font-medium">Headcount</th>
+                      <th className="pb-2 text-right font-medium">Monthly Salary</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
+                    {data.byDepartment.map((row) => (
+                      <tr key={row.department}>
+                        <td className="py-2">{row.department}</td>
+                        <td className="py-2 text-right tabular-nums">{row.headcount}</td>
+                        <td className="py-2 text-right font-medium tabular-nums">
+                          {money(row.salary)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </CardBody>
             </Card>
           </div>

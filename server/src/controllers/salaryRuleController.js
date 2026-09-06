@@ -1,11 +1,12 @@
 import { SalaryRule } from '../models/SalaryRule.js'
 import { computePayslipLines } from '../services/payroll.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
+import { paginate } from '../utils/paginate.js'
 
 const POPULATE = { path: 'structure', select: 'name code' }
 
 export const list = asyncHandler(async (req, res) => {
-  const { structure, search, category } = req.query
+  const { structure, search, category, page, pageSize } = req.query
 
   const filter = {}
   if (structure) filter.structure = structure
@@ -14,8 +15,14 @@ export const list = asyncHandler(async (req, res) => {
     filter.$or = [{ name: new RegExp(search, 'i') }, { code: new RegExp(search, 'i') }]
   }
 
-  const rules = await SalaryRule.find(filter).populate(POPULATE).sort({ sequence: 1 })
-  res.json({ rules })
+  const { rows, ...meta } = await paginate(SalaryRule, filter, {
+    sort: { sequence: 1 },
+    populate: POPULATE,
+    page,
+    pageSize,
+  })
+
+  res.json({ rules: rows, ...meta })
 })
 
 export const getOne = asyncHandler(async (req, res) => {

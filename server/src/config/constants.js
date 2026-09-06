@@ -43,6 +43,11 @@ export const PAYSLIP_STATES = ['done', 'paid']
 
 export const TIMEOFF_UNITS = ['days', 'hours']
 
+// Who signs off on a request of this type.
+export const TIMEOFF_COLORS = ['blue', 'green', 'amber', 'red', 'violet']
+
+export const APPROVAL_BY = ['manager', 'hr']
+
 export const ALLOCATION_MODES = ['fixed', 'accrual']
 
 export const ALLOCATION_STATES = ['draft', 'approved', 'refused']
@@ -54,5 +59,6 @@ export const ATTENDANCE_STATUSES = ['present', 'late', 'absent', 'overtime']
 // Minutes past the scheduled start that still count as on time.
 export const LATE_GRACE_MINUTES = 15
 
-// Minutes short of the scheduled span before a day counts as a short day.
-export const SHORT_DAY_GRACE_MINUTES = 15
+// Minutes either side of the scheduled hours treated as noise rather than as
+// overtime or a short day.
+export const HOURS_GRACE_MINUTES = 15

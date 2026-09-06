@@ -12,9 +12,10 @@ import {
 } from '@/components/ui'
 import { attendanceApi, employeesApi } from '@/api/hr'
 import { useAuth } from '@/context/AuthContext'
+import { CorrectionPanel } from './CorrectionPanel'
 import { useNotify } from '@/context/NotificationContext'
 import { getErrorMessage } from '@/utils/errorUtils'
-import { ATTENDANCE_STATUSES } from '@/config/constants'
+import { ATTENDANCE_STATUSES, MAX_PAGE_SIZE } from '@/config/constants'
 
 // datetime-local wants local time without a zone; toISOString would shift it.
 const toLocalInput = (value) => {
@@ -48,6 +49,7 @@ export function AttendanceDrawer({ recordId, onClose, onSaved }) {
   const [loadError, setLoadError] = useState(null)
   const [editing, setEditing] = useState(isNew)
   const [saving, setSaving] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -55,7 +57,7 @@ export function AttendanceDrawer({ recordId, onClose, onSaved }) {
     async function load() {
       try {
         if (canCorrect) {
-          const { employees } = await employeesApi.list()
+          const { employees } = await employeesApi.list({ pageSize: MAX_PAGE_SIZE })
           if (!cancelled) setEmployees(employees)
         }
         if (cancelled) return
@@ -83,7 +85,7 @@ export function AttendanceDrawer({ recordId, onClose, onSaved }) {
     return () => {
       cancelled = true
     }
-  }, [recordId, isNew, canCorrect])
+  }, [recordId, isNew, canCorrect, reloadKey])
 
   const set = (field) => (event) =>
     setForm((current) => ({ ...current, [field]: event.target.value }))
@@ -186,6 +188,55 @@ export function AttendanceDrawer({ recordId, onClose, onSaved }) {
               <ReadOnlyField label="Notes">{record.notes}</ReadOnlyField>
             </div>
           </div>
+
+          {record.sessions?.length > 1 ? (
+            <div>
+              <p className="mb-2 text-xs uppercase tracking-wider text-neutral-500">
+                Spells at the desk
+              </p>
+              <div className="space-y-1.5">
+                {record.sessions.map((session, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between rounded-lg border border-neutral-200 px-3 py-2 text-sm dark:border-neutral-700"
+                  >
+                    <span className="tabular-nums">
+                      {new Date(session.checkIn).toLocaleTimeString('en-IN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                      {' — '}
+                      {session.checkOut
+                        ? new Date(session.checkOut).toLocaleTimeString('en-IN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : 'still in'}
+                    </span>
+                    <span className="text-xs text-neutral-500">
+                      {session.checkOut
+                        ? `${Math.round(((new Date(session.checkOut) - new Date(session.checkIn)) / 3600000) * 100) / 100} h`
+                        : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                Worked hours add up the spells; the gap between them is not paid for.
+              </p>
+            </div>
+          ) : null}
+
+          <CorrectionPanel
+            record={record}
+            canDecide={canCorrect}
+            onApplied={() => {
+              // An approved correction rewrites the times on the record itself,
+              // so the drawer has to read them back, not only the list behind it.
+              setReloadKey((key) => key + 1)
+              onSaved()
+            }}
+          />
         </div>
       ) : (
         <form id="attendance-form" onSubmit={handleSubmit} className="space-y-4">

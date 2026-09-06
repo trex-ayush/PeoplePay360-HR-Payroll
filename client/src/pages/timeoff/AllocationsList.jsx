@@ -9,12 +9,16 @@ import { allocationsApi } from '@/api/hr'
 import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useDrawerRoute } from '@/hooks/useDrawerRoute'
+import { useEmployeeFilter } from '@/hooks/useEmployeeFilter'
+import { EmployeeFilterChip } from '@/components/EmployeeFilterChip'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { ALLOCATION_STATES } from '@/config/constants'
+import { inUnits } from '@/utils/units'
 
 const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
 
-const amount = (value, unit) => `${value} ${unit ?? 'days'}`
+const amount = (value, unit) => inUnits(value, unit)
 
 const buildColumns = ({ canManage, onEdit, onDelete }) => [
   {
@@ -107,18 +111,22 @@ export default function AllocationsList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
-  const [openId, setOpenId] = useState(null)
+  const [openId, setOpenId] = useDrawerRoute('/time-off/allocations')
+  const { employeeId, employee, clear } = useEmployeeFilter()
   const [reloadKey, setReloadKey] = useState(0)
+  const [page, setPage] = useState(1)
+  const [meta, setMeta] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
 
     allocationsApi
-      .list()
-      .then(({ allocations }) => {
+      .list({ employee: employeeId, page })
+      .then(({ allocations, ...meta }) => {
         if (cancelled) return
         setAllocations(allocations)
+        setMeta(meta)
         setError(null)
       })
       .catch((err) => !cancelled && setError(err))
@@ -127,7 +135,7 @@ export default function AllocationsList() {
     return () => {
       cancelled = true
     }
-  }, [reloadKey])
+  }, [employeeId, page, reloadKey])
 
   const reload = () => setReloadKey((k) => k + 1)
 
@@ -159,6 +167,10 @@ export default function AllocationsList() {
         }
       />
 
+      <div className="mb-4 flex flex-wrap items-center gap-3 empty:mb-0">
+        <EmployeeFilterChip employee={employee} onClear={clear} />
+      </div>
+
       <DataTable
         columns={buildColumns({
           canManage,
@@ -171,6 +183,7 @@ export default function AllocationsList() {
         error={error}
         onRowClick={(row) => setOpenId(row._id)}
         rounded="lg"
+        pagination={meta ? { ...meta, onPageChange: setPage } : undefined}
         emptyState={
           <EmptyState
             title={canManage ? 'No allocations yet' : 'No leave allocated to you yet'}

@@ -1,6 +1,14 @@
 import mongoose from 'mongoose'
 import { ATTENDANCE_STATUSES } from '../config/constants.js'
 
+const sessionSchema = new mongoose.Schema(
+  {
+    checkIn: { type: Date, required: true },
+    checkOut: { type: Date, default: null },
+  },
+  { _id: false }
+)
+
 const attendanceSchema = new mongoose.Schema(
   {
     employee: {
@@ -14,7 +22,11 @@ const attendanceSchema = new mongoose.Schema(
     // one record per day regardless of shift times.
     date: { type: Date, required: true, index: true },
 
-    // Absent when there is no check in at all.
+    // One day can hold several spells at the desk — out for lunch, back after.
+    sessions: { type: [sessionSchema], default: [] },
+
+    // First check in and last check out of the day, derived from the sessions so
+    // lists and payslips have the plain two-column view the spec asks for.
     checkIn: { type: Date, default: null },
     checkOut: { type: Date, default: null },
 

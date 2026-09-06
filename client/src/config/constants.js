@@ -1,7 +1,7 @@
 export const STORAGE_KEYS = {
+  sidebarCollapsed: 'sidebar-collapsed',
   authToken: 'peoplepay360.token',
   theme: 'app-theme',
-  sidebarCollapsed: 'sidebar-collapsed',
   employeesView: 'employees-view',
 }
 
@@ -70,6 +70,22 @@ export const TIMEOFF_UNITS = [
   { value: 'hours', label: 'Hours' },
 ]
 
+export const TIMEOFF_COLORS = [
+  { value: 'blue', label: 'Blue', swatch: 'bg-blue-500' },
+  { value: 'green', label: 'Green', swatch: 'bg-emerald-500' },
+  { value: 'amber', label: 'Amber', swatch: 'bg-amber-500' },
+  { value: 'red', label: 'Red', swatch: 'bg-red-500' },
+  { value: 'violet', label: 'Violet', swatch: 'bg-violet-500' },
+]
+
+// One company for now, but the schedule list shows it the way the mockup does.
+export const COMPANY_NAME = 'OXP Pvt Ltd'
+
+export const APPROVAL_BY = [
+  { value: 'hr', label: 'HR Officer' },
+  { value: 'manager', label: 'Manager' },
+]
+
 export const ALLOCATION_STATES = [
   { value: 'draft', label: 'To Approve', tone: 'warning' },
   { value: 'approved', label: 'Approved', tone: 'success' },
@@ -93,3 +109,7 @@ export const ATTENDANCE_STATUSES = [
   { value: 'overtime', label: 'Overtime', tone: 'info' },
   { value: 'absent', label: 'Absent', tone: 'danger' },
 ]
+
+// Drawers show a whole set at once — an employee picker, a record's history —
+// with no pager of their own, so they ask for the largest page the API serves.
+export const MAX_PAGE_SIZE = 200

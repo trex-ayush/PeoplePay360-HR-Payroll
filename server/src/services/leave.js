@@ -1,6 +1,7 @@
 import { TimeOffAllocation } from '../models/TimeOffAllocation.js'
 import { TimeOffRequest } from '../models/TimeOffRequest.js'
 import { TimeOffType } from '../models/TimeOffType.js'
+import { Employee } from '../models/Employee.js'
 import { workingDaysBetween } from './schedule.js'
 import { httpError } from '../utils/asyncHandler.js'
 
@@ -81,6 +82,20 @@ export function assertNotSelf(actor, employeeId, what) {
 
   if (actor.employeeId && String(actor.employeeId) === String(employeeId)) {
     throw httpError(403, `You cannot approve your own ${what}. Ask another HR user to review it.`)
+  }
+}
+
+// A type set to manager approval is decided by that employee's own manager, so
+// the setting changes who can act rather than only labelling the policy.
+export async function assertCanDecide(actor, request, type) {
+  if (actor.hasRole('admin') || type.approvalBy !== 'manager') return
+
+  const employee = await Employee.findById(request.employee).select('manager name')
+  if (!employee?.manager) {
+    throw httpError(400, `${employee?.name ?? 'This employee'} has no manager set, so nobody can approve ${type.name}`)
+  }
+  if (String(employee.manager) !== String(actor.employeeId)) {
+    throw httpError(403, `${type.name} is approved by the employee's manager`)
   }
 }
 

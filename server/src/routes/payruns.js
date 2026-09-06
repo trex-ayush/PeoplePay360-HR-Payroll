@@ -11,6 +11,7 @@ import {
   remove,
   eligibleEmployees,
   warnings,
+  sendPayslips,
 } from '../controllers/payrunController.js'
 
 const router = Router()
@@ -27,6 +28,7 @@ router.post('/', create)
 router.post('/:id/compute', compute)
 router.post('/:id/validate', validate)
 router.post('/:id/mark-paid', markPaid)
+router.post('/:id/send-payslips', sendPayslips)
 router.delete('/:id', remove)
 
 export default router

@@ -14,11 +14,13 @@ import {
 import { timeOffTypesApi } from '@/api/hr'
 import { useNotify } from '@/context/NotificationContext'
 import { getErrorMessage } from '@/utils/errorUtils'
-import { TIMEOFF_UNITS } from '@/config/constants'
+import { APPROVAL_BY, TIMEOFF_COLORS, TIMEOFF_UNITS } from '@/config/constants'
 
 const EMPTY = {
   name: '',
   unit: 'days',
+  approvalBy: 'hr',
+  color: 'blue',
   requiresAllocation: true,
   payrollCode: '',
   active: true,
@@ -129,6 +131,20 @@ export function TypeDrawer({ typeId, onClose, onSaved }) {
               {form.requiresAllocation ? 'Required' : 'No'}
             </Badge>
           </ReadOnlyField>
+          <ReadOnlyField label="Approval">
+            {APPROVAL_BY.find((a) => a.value === form.approvalBy)?.label}
+          </ReadOnlyField>
+          <ReadOnlyField label="Display Color">
+            <span className="flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className={`h-3 w-3 rounded-full ${
+                  TIMEOFF_COLORS.find((c) => c.value === form.color)?.swatch ?? 'bg-neutral-400'
+                }`}
+              />
+              {TIMEOFF_COLORS.find((c) => c.value === form.color)?.label ?? form.color}
+            </span>
+          </ReadOnlyField>
           <ReadOnlyField label="Payroll Code">
             <span className="font-mono">{form.payrollCode || '—'}</span>
           </ReadOnlyField>
@@ -160,6 +176,45 @@ export function TypeDrawer({ typeId, onClose, onSaved }) {
               {TIMEOFF_UNITS.map((unit) => (
                 <option key={unit.value} value={unit.value}>
                   {unit.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField
+            label="Approval"
+            htmlFor="approvalBy"
+            required
+            hint={
+              form.approvalBy === 'manager'
+                ? 'Only the employee’s own manager can approve this type'
+                : 'Any HR user can approve this type'
+            }
+          >
+            <select
+              id="approvalBy"
+              value={form.approvalBy}
+              onChange={set('approvalBy')}
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100"
+            >
+              {APPROVAL_BY.map((a) => (
+                <option key={a.value} value={a.value}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField label="Display Color" htmlFor="color" hint="Tells one leave type from another at a glance">
+            <select
+              id="color"
+              value={form.color}
+              onChange={set('color')}
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100"
+            >
+              {TIMEOFF_COLORS.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
                 </option>
               ))}
             </select>

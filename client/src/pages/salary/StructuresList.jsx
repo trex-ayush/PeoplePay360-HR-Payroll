@@ -9,6 +9,7 @@ import { StructureDrawer } from './StructureDrawer'
 import { salaryStructuresApi } from '@/api/hr'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useDrawerRoute } from '@/hooks/useDrawerRoute'
 import { getErrorMessage } from '@/utils/errorUtils'
 
 const buildColumns = ({ onEdit, onDelete }) => [
@@ -78,7 +79,7 @@ export default function StructuresList() {
   const [error, setError] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [creating, setCreating] = useState(false)
+  const [openId, setOpenId] = useDrawerRoute('/salary-structures')
 
   useEffect(() => {
     let cancelled = false
@@ -127,7 +128,7 @@ export default function StructuresList() {
         actions={
           <Button
             iconLeft={<Plus size={16} />}
-            onClick={() => setCreating(true)}
+            onClick={() => setOpenId('new')}
           >
             New
           </Button>
@@ -168,12 +169,12 @@ export default function StructuresList() {
         confirmValue={pendingDelete?.name ?? ''}
       />
 
-      {creating ? (
+      {openId === 'new' ? (
         <StructureDrawer
           structureId='new'
-          onClose={() => setCreating(false)}
+          onClose={() => setOpenId(null)}
           onSaved={(structure) => {
-            setCreating(false)
+            setOpenId(null)
             navigate(`/salary-structures/${structure._id}`)
           }}
         />

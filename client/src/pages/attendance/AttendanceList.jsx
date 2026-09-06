@@ -9,6 +9,9 @@ import { attendanceApi } from '@/api/hr'
 import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useDrawerRoute } from '@/hooks/useDrawerRoute'
+import { useEmployeeFilter } from '@/hooks/useEmployeeFilter'
+import { EmployeeFilterChip } from '@/components/EmployeeFilterChip'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { ATTENDANCE_STATUSES } from '@/config/constants'
 
@@ -88,18 +91,22 @@ export default function AttendanceList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
-  const [openId, setOpenId] = useState(null)
+  const [openId, setOpenId] = useDrawerRoute('/attendance')
+  const { employeeId, employee, clear } = useEmployeeFilter()
   const [reloadKey, setReloadKey] = useState(0)
+  const [page, setPage] = useState(1)
+  const [meta, setMeta] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
 
     attendanceApi
-      .list(range)
-      .then(({ records }) => {
+      .list({ ...range, employee: employeeId, page })
+      .then(({ records, ...meta }) => {
         if (cancelled) return
         setRecords(records)
+        setMeta(meta)
         setError(null)
       })
       .catch((err) => !cancelled && setError(err))
@@ -108,7 +115,7 @@ export default function AttendanceList() {
     return () => {
       cancelled = true
     }
-  }, [range, reloadKey])
+  }, [range, employeeId, page, reloadKey])
 
   const reload = () => setReloadKey((k) => k + 1)
 
@@ -142,7 +149,10 @@ export default function AttendanceList() {
             label="From"
             type="date"
             value={range.from}
-            onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
+            onChange={(e) => {
+              setRange((r) => ({ ...r, from: e.target.value }))
+              setPage(1)
+            }}
           />
         </div>
         <div className="w-44">
@@ -150,14 +160,26 @@ export default function AttendanceList() {
             label="To"
             type="date"
             value={range.to}
-            onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
+            onChange={(e) => {
+              setRange((r) => ({ ...r, to: e.target.value }))
+              setPage(1)
+            }}
           />
         </div>
         {range.from || range.to ? (
-          <Button variant="ghost" size="sm" onClick={() => setRange({ from: '', to: '' })}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setRange({ from: '', to: '' })
+              setPage(1)
+            }}
+          >
             Clear
           </Button>
         ) : null}
+
+        <EmployeeFilterChip employee={employee} onClear={clear} />
       </div>
 
       <DataTable
@@ -172,6 +194,7 @@ export default function AttendanceList() {
         error={error}
         onRowClick={(row) => setOpenId(row._id)}
         rounded="lg"
+        pagination={meta ? { ...meta, onPageChange: setPage } : undefined}
         emptyState={
           <EmptyState
             title="No attendance records"

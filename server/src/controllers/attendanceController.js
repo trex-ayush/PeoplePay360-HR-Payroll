@@ -3,6 +3,7 @@ import { Employee } from '../models/Employee.js'
 import { startOfDay, summarise } from '../services/attendance.js'
 import { assertOwn, ownFilter } from '../middleware/auth.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
+import { paginate } from '../utils/paginate.js'
 
 const POPULATE = [
   { path: 'employee', select: 'name code department jobPosition', populate: { path: 'department', select: 'name' } },
@@ -14,6 +15,11 @@ async function scheduleOf(employeeId) {
   return employee.schedule
 }
 
+// A correction from HR states the day as one span, which replaces whatever
+// sessions were there.
+const sessionsFrom = (checkIn, checkOut) =>
+  checkIn ? [{ checkIn: new Date(checkIn), checkOut: checkOut ? new Date(checkOut) : null }] : []
+
 function ownEmployeeId(req) {
   if (!req.user.employeeId) {
     throw httpError(400, 'Your account is not linked to an employee record yet')
@@ -22,7 +28,7 @@ function ownEmployeeId(req) {
 }
 
 export const list = asyncHandler(async (req, res) => {
-  const { employee, status, from, to } = req.query
+  const { employee, status, from, to, page, pageSize } = req.query
 
   const filter = {}
   if (employee) filter.employee = employee
@@ -33,10 +39,14 @@ export const list = asyncHandler(async (req, res) => {
     if (to) filter.date.$lte = startOfDay(to)
   }
 
-  const records = await Attendance.find({ ...filter, ...ownFilter(req) })
-    .populate(POPULATE)
-    .sort({ date: -1, checkIn: -1 })
-  res.json({ records })
+  const { rows, ...meta } = await paginate(Attendance, { ...filter, ...ownFilter(req) }, {
+    sort: { date: -1, checkIn: -1 },
+    populate: POPULATE,
+    page,
+    pageSize,
+  })
+
+  res.json({ records: rows, ...meta })
 })
 
 // Feeds the home widget: what the signed-in employee has done today.
@@ -55,15 +65,15 @@ export const checkIn = asyncHandler(async (req, res) => {
   const employee = ownEmployeeId(req)
   const date = startOfDay(new Date())
 
-  const existing = await Attendance.findOne({ employee, date })
-  if (existing?.checkIn) throw httpError(409, 'You have already checked in today')
+  const record = (await Attendance.findOne({ employee, date })) ?? new Attendance({ employee, date })
+  if (record.sessions.some((s) => !s.checkOut)) {
+    throw httpError(409, 'You are already checked in. Check out first.')
+  }
 
-  const now = new Date()
   const schedule = await scheduleOf(employee)
-  const derived = summarise({ schedule, checkIn: now, checkOut: null })
+  const sessions = [...record.sessions, { checkIn: new Date(), checkOut: null }]
 
-  const record = existing ?? new Attendance({ employee, date })
-  Object.assign(record, { checkIn: now, checkOut: null, ...derived })
+  Object.assign(record, summarise({ schedule, sessions }))
   await record.save()
 
   res.status(201).json({ record })
@@ -73,16 +83,13 @@ export const checkOut = asyncHandler(async (req, res) => {
   const employee = ownEmployeeId(req)
 
   const record = await Attendance.findOne({ employee, date: startOfDay(new Date()) })
-  if (!record?.checkIn) throw httpError(400, 'Check in before checking out')
-  if (record.checkOut) throw httpError(409, 'You have already checked out today')
+  const open = record?.sessions.findLast((s) => !s.checkOut)
+  if (!open) throw httpError(400, 'Check in before checking out')
 
-  const now = new Date()
   const schedule = await scheduleOf(employee)
+  const sessions = record.sessions.map((s) => (s === open ? { ...s.toObject(), checkOut: new Date() } : s))
 
-  Object.assign(record, {
-    checkOut: now,
-    ...summarise({ schedule, checkIn: record.checkIn, checkOut: now }),
-  })
+  Object.assign(record, summarise({ schedule, sessions }))
   await record.save()
 
   res.json({ record })
@@ -100,20 +107,13 @@ export const create = asyncHandler(async (req, res) => {
   const { employee, date, checkIn, checkOut, notes } = req.body
 
   const schedule = await scheduleOf(employee)
-  const derived = summarise({
-    schedule,
-    checkIn: checkIn ? new Date(checkIn) : null,
-    checkOut: checkOut ? new Date(checkOut) : null,
-  })
 
   const record = await Attendance.create({
     employee,
     date: startOfDay(date ?? checkIn ?? new Date()),
-    checkIn: checkIn ?? null,
-    checkOut: checkOut ?? null,
     notes,
     manuallyEdited: true,
-    ...derived,
+    ...summarise({ schedule, sessions: sessionsFrom(checkIn, checkOut) }),
   })
 
   res.status(201).json({ record: await record.populate(POPULATE) })
@@ -123,13 +123,11 @@ export const update = asyncHandler(async (req, res) => {
   const record = await Attendance.findById(req.params.id)
   if (!record) throw httpError(404, 'Attendance record not found')
 
-  Object.assign(record, req.body)
+  const { checkIn, checkOut, ...rest } = req.body
+  Object.assign(record, rest)
 
   const schedule = await scheduleOf(record.employee)
-  Object.assign(
-    record,
-    summarise({ schedule, checkIn: record.checkIn, checkOut: record.checkOut })
-  )
+  Object.assign(record, summarise({ schedule, sessions: sessionsFrom(checkIn, checkOut) }))
   record.manuallyEdited = true
   await record.save()
 

@@ -22,7 +22,7 @@ import {
 import { useNotify } from '@/context/NotificationContext'
 import { contractSchema } from '@/validations/contract'
 import { getErrorMessage } from '@/utils/errorUtils'
-import { CONTRACT_STATES } from '@/config/constants'
+import { CONTRACT_STATES, MAX_PAGE_SIZE } from '@/config/constants'
 
 const toDateInput = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '')
 
@@ -100,7 +100,7 @@ export function ContractDrawer({ contractId, presetEmployee, onClose, onSaved })
       setLoading(true)
       try {
         const [{ employees }, { departments }, { structures }, { schedules }] = await Promise.all([
-          employeesApi.list(),
+          employeesApi.list({ pageSize: MAX_PAGE_SIZE }),
           departmentsApi.list(),
           salaryStructuresApi.list(),
           schedulesApi.list(),

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Check, Copy, Mail, Send } from 'lucide-react'
 import { Badge, Button, Checkbox, EmptyState, Skeleton } from '@/components/ui'
 import { employeesApi, invitesApi } from '@/api/hr'
+import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
 import { getErrorMessage } from '@/utils/errorUtils'
 import { ROLE_LABELS } from '@/config/constants'
@@ -105,6 +106,9 @@ export function InviteLink({ invite, onResend }) {
 
 export function AccessTab({ employeeId }) {
   const notify = useNotify()
+  const { user } = useAuth()
+
+  const isSelf = String(user.employeeId) === String(employeeId)
 
   const [data, setData] = useState(null)
   const [roles, setRoles] = useState(['employee'])
@@ -172,17 +176,24 @@ export function AccessTab({ employeeId }) {
 
       <div>
         <p className="mb-2 text-xs uppercase tracking-wider text-neutral-500">Roles</p>
-        <RolePicker roles={roles} onChange={setRoles} />
+        <RolePicker roles={roles} onChange={setRoles} disabled={isSelf} />
+        {isSelf ? (
+          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+            These are your own roles. Another admin has to change them.
+          </p>
+        ) : null}
       </div>
 
-      <Button
-        iconLeft={<Send size={14} />}
-        loading={saving}
-        disabled={!roles.length}
-        onClick={grant}
-      >
-        {data.user ? 'Save roles' : 'Create login & send invite'}
-      </Button>
+      {isSelf ? null : (
+        <Button
+          iconLeft={<Send size={14} />}
+          loading={saving}
+          disabled={!roles.length}
+          onClick={grant}
+        >
+          {data.user ? 'Save roles' : 'Create login & send invite'}
+        </Button>
+      )}
 
       {open ? <InviteLink invite={open} onResend={() => resend(open._id)} /> : null}
 

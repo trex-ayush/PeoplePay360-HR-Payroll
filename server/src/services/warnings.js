@@ -3,6 +3,11 @@ import { Payslip } from '../models/Payslip.js'
 import { Payrun } from '../models/Payrun.js'
 import { findContractForPeriod } from './contract.js'
 
+// toISOString() would shift the day for anyone east of UTC, and a contract that
+// ends on the 30th must not read as the 29th.
+const localDate = (date) =>
+  new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+
 // R5. Warnings, never blocks — only a person can decide whether an issue matters
 // for this run.
 export async function getPayrunWarnings(payrun) {
@@ -36,7 +41,7 @@ export async function getPayrunWarnings(payrun) {
       severity,
       message,
       employee: { _id: employee._id, name: employee.name, code: employee.code },
-      link: `/employees?open=${employee._id}`,
+      link: `/employees/${employee._id}`,
     })
 
   for (const employee of employees) {
@@ -61,7 +66,7 @@ export async function getPayrunWarnings(payrun) {
         'contract_expiring',
         'warning',
         employee,
-        `Contract ${contract.reference} ends on ${contract.endDate.toISOString().slice(0, 10)}, inside this period`
+        `Contract ${contract.reference} ends on ${localDate(contract.endDate)}, inside this period`
       )
     }
   }

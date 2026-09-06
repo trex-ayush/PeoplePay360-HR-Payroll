@@ -15,10 +15,16 @@ import {
 } from '@/components/ui'
 import { attendanceApi, contractsApi, departmentsApi, employeesApi, schedulesApi } from '@/api/hr'
 import { AccessTab, InviteLink, RolePicker } from './AccessTab'
+import { AllocationsTab, TimeOffTab } from './TimeOffTabs'
 import { useNotify } from '@/context/NotificationContext'
 import { employeeSchema } from '@/validations/employee'
 import { getErrorMessage } from '@/utils/errorUtils'
-import { ATTENDANCE_STATUSES, CONTRACT_STATES, EMPLOYEE_TYPES } from '@/config/constants'
+import {
+  ATTENDANCE_STATUSES,
+  CONTRACT_STATES,
+  EMPLOYEE_TYPES,
+  MAX_PAGE_SIZE,
+} from '@/config/constants'
 import { cn } from '@/utils/cn'
 
 const EMPTY = {
@@ -38,6 +44,8 @@ const EMPTY = {
 
 const formatDate = (value) =>
   value ? new Date(value).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—'
+
+const withCount = (label, count) => (count ? `${label} (${count})` : label)
 
 const formatClock = (value) =>
   value ? new Date(value).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'
@@ -161,7 +169,7 @@ function AttendanceTab({ employeeId }) {
       })}
 
       <Link
-        to="/attendance"
+        to={`/attendance?employee=${employeeId}`}
         className="inline-block pt-1 text-sm text-neutral-500 hover:underline dark:text-neutral-400"
       >
         View all in Attendance
@@ -243,6 +251,7 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
   const [contracts, setContracts] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
+  const [counts, setCounts] = useState(null)
   const [newRoles, setNewRoles] = useState([])
   const [invite, setInvite] = useState(null)
 
@@ -263,7 +272,7 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
         const [{ departments }, { schedules }, { employees }] = await Promise.all([
           departmentsApi.list(),
           schedulesApi.list(),
-          employeesApi.list(),
+          employeesApi.list({ pageSize: MAX_PAGE_SIZE }),
         ])
         if (cancelled) return
         setOptions({ departments, schedules, employees })
@@ -273,12 +282,14 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
           if (cancelled) return
           reset({ ...EMPTY, code })
         } else {
-          const [{ employee }, { contracts }] = await Promise.all([
+          const [{ employee }, { contracts }, related] = await Promise.all([
             employeesApi.get(employeeId),
-            contractsApi.list({ employee: employeeId }),
+            contractsApi.list({ employee: employeeId, pageSize: MAX_PAGE_SIZE }),
+            employeesApi.related(employeeId),
           ])
           if (cancelled) return
           setContracts(contracts)
+          setCounts(related)
           reset({
             ...EMPTY,
             ...employee,
@@ -338,11 +349,10 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
     ...(isNew
       ? []
       : [
-          {
-            key: 'contracts',
-            label: contracts.length ? `Contracts (${contracts.length})` : 'Contracts',
-          },
-          { key: 'attendance', label: 'Attendance' },
+          { key: 'contracts', label: withCount('Contracts', counts?.contracts) },
+          { key: 'attendance', label: withCount('Attendance', counts?.attendance) },
+          { key: 'timeoff', label: withCount('Time Off', counts?.timeOff) },
+          { key: 'allocations', label: withCount('Allocations', counts?.allocations) },
           { key: 'access', label: 'Login Access' },
         ]),
   ]
@@ -523,6 +533,10 @@ export function EmployeeDrawer({ employeeId, onClose, onSaved }) {
           {tab === 'contracts' ? (
             <ContractsTab employeeId={employeeId} contracts={contracts} loading={loading} />
           ) : null}
+
+          {tab === 'timeoff' ? <TimeOffTab employeeId={employeeId} /> : null}
+
+          {tab === 'allocations' ? <AllocationsTab employeeId={employeeId} /> : null}
 
           {tab === 'access' ? <AccessTab employeeId={employeeId} /> : null}
 

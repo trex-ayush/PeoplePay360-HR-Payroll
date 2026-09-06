@@ -8,6 +8,7 @@ import { DepartmentDrawer } from './DepartmentDrawer'
 import { departmentsApi } from '@/api/hr'
 import { useNotify } from '@/context/NotificationContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
+import { useDrawerRoute } from '@/hooks/useDrawerRoute'
 import { getErrorMessage } from '@/utils/errorUtils'
 
 export default function DepartmentsList() {
@@ -15,10 +16,13 @@ export default function DepartmentsList() {
   const notify = useNotify()
 
   const [departments, setDepartments] = useState([])
-  const [open, setOpen] = useState(null)
+  const [openId, setOpenId] = useDrawerRoute('/departments')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
+
+  const openDepartment =
+    openId && openId !== 'new' ? (departments.find((d) => d._id === openId) ?? null) : null
 
   const load = () =>
     departmentsApi
@@ -59,7 +63,7 @@ export default function DepartmentsList() {
       align: 'right',
       width: 60,
       cell: (row) => (
-        <RowActions onEdit={() => setOpen(row)} onDelete={() => setPendingDelete(row)} />
+        <RowActions onEdit={() => setOpenId(row._id)} onDelete={() => setPendingDelete(row)} />
       ),
     },
   ]
@@ -70,7 +74,7 @@ export default function DepartmentsList() {
         title="Departments"
         description="Used to group employees and split payroll cost."
         actions={
-          <Button iconLeft={<Plus size={16} />} onClick={() => setOpen('new')}>
+          <Button iconLeft={<Plus size={16} />} onClick={() => setOpenId('new')}>
             New
           </Button>
         }
@@ -82,7 +86,7 @@ export default function DepartmentsList() {
         rowKey={(row) => row._id}
         loading={loading}
         error={error}
-        onRowClick={(row) => setOpen(row)}
+        onRowClick={(row) => setOpenId(row._id)}
         onRetry={load}
         rounded="lg"
         emptyState={
@@ -102,12 +106,12 @@ export default function DepartmentsList() {
         confirmValue={pendingDelete?.name ?? ''}
       />
 
-      {open ? (
+      {openId === 'new' || openDepartment ? (
         <DepartmentDrawer
-          department={open === 'new' ? null : open}
-          onClose={() => setOpen(null)}
+          department={openDepartment}
+          onClose={() => setOpenId(null)}
           onSaved={() => {
-            if (open === 'new') setOpen(null)
+            if (openId === 'new') setOpenId(null)
             load()
           }}
         />

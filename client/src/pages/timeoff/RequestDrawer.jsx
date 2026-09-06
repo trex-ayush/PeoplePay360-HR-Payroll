@@ -14,7 +14,8 @@ import { allocationsApi, employeesApi, timeOffRequestsApi, timeOffTypesApi } fro
 import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
 import { getErrorMessage } from '@/utils/errorUtils'
-import { REQUEST_STATES } from '@/config/constants'
+import { MAX_PAGE_SIZE, REQUEST_STATES } from '@/config/constants'
+import { inUnits } from '@/utils/units'
 
 const toDateInput = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '')
 
@@ -68,7 +69,7 @@ export function RequestDrawer({ requestId, onClose, onSaved }) {
         // request is always for themselves.
         const [{ types }, staff] = await Promise.all([
           timeOffTypesApi.list(),
-          canDecide ? employeesApi.list() : Promise.resolve({ employees: [] }),
+          canDecide ? employeesApi.list({ pageSize: MAX_PAGE_SIZE }) : Promise.resolve({ employees: [] }),
         ])
         if (cancelled) return
         setOptions({ employees: staff.employees, types })
@@ -242,9 +243,7 @@ export function RequestDrawer({ requestId, onClose, onSaved }) {
             <ReadOnlyField label="Start Date">{longDate(record.dateFrom)}</ReadOnlyField>
             <ReadOnlyField label="End Date">{longDate(record.dateTo)}</ReadOnlyField>
             <ReadOnlyField label="Duration">
-              <span className="tabular-nums">
-                {record.duration} {unit}
-              </span>
+              <span className="tabular-nums">{inUnits(record.duration, unit)}</span>
             </ReadOnlyField>
             <ReadOnlyField label="Approver">{record.approver?.name ?? '—'}</ReadOnlyField>
             <div className="sm:col-span-2">

@@ -14,11 +14,20 @@ export function Sidebar({ sections }) {
         sidebarCollapsed ? 'w-16' : 'w-64'
       )}
     >
-      <nav className="flex-1 overflow-y-auto p-3 flex flex-col gap-1">
-        {sections.map((section) => (
-          <div key={section.title} className="mb-3">
+      <nav className="flex flex-1 flex-col overflow-y-auto p-3">
+        {sections.map((section, index) => (
+          <div
+            key={section.title}
+            className={cn(
+              'mb-1',
+              // Collapsed there is no heading to separate the groups, so a hairline does it.
+              sidebarCollapsed &&
+                index > 0 &&
+                'mt-1.5 border-t border-neutral-100 pt-1.5 dark:border-neutral-700/60'
+            )}
+          >
             {section.title && !sidebarCollapsed ? (
-              <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+              <p className="px-3 pb-0.5 pt-2.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
                 {section.title}
               </p>
             ) : null}
@@ -30,8 +39,10 @@ export function Sidebar({ sections }) {
                 title={sidebarCollapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
-                    sidebarCollapsed && 'justify-center px-0',
+                    'flex items-center rounded-lg text-sm transition-colors',
+                    sidebarCollapsed
+                      ? 'mx-auto my-0.5 h-9 w-9 justify-center'
+                      : 'gap-2.5 px-3 py-1.5',
                     isActive
                       ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 font-medium'
                       : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700/50'

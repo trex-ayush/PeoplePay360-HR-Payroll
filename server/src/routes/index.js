@@ -2,6 +2,7 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import authRoutes from './auth.js'
 import employeeRoutes from './employees.js'
+import userRoutes from './users.js'
 import departmentRoutes from './departments.js'
 import scheduleRoutes from './schedules.js'
 import contractRoutes from './contracts.js'
@@ -25,6 +26,7 @@ router.get('/health', (_req, res) => {
 
 router.use('/auth', authRoutes)
 router.use('/employees', employeeRoutes)
+router.use('/users', userRoutes)
 router.use('/departments', departmentRoutes)
 router.use('/working-schedules', scheduleRoutes)
 router.use('/contracts', contractRoutes)

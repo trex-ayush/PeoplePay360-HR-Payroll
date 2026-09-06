@@ -6,6 +6,8 @@ import { computePayslipLines, round2 } from '../services/payroll.js'
 import { unpaidDaysInPeriod } from '../services/leave.js'
 import { findEligibleEmployees } from '../services/payrun.js'
 import { getPayrunWarnings } from '../services/warnings.js'
+import { payslipEmail, send } from '../services/mailer.js'
+import { env } from '../config/env.js'
 import { workingDaysBetween } from '../services/schedule.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
 
@@ -176,13 +178,78 @@ export const markPaid = asyncHandler(async (req, res) => {
   const payrun = await Payrun.findById(req.params.id)
   if (!payrun) throw httpError(404, 'Payrun not found')
 
-  if (payrun.state !== 'validated') throw httpError(400, 'Validate this payrun before paying it')
+  // Paying again is allowed: a payslip held back for a missing bank account can
+  // be settled once the account is filled in, without redoing the run.
+  if (!LOCKED.includes(payrun.state)) {
+    throw httpError(400, 'Validate this payrun before paying it')
+  }
+
+  const payslips = await Payslip.find({ payrun: payrun._id }).populate({
+    path: 'employee',
+    select: 'name bankAccount',
+  })
+
+  // The warning on this run says a payslip with no account cannot be paid out, so
+  // it is left unpaid instead of being marked off. Add the account and pay again.
+  const payable = payslips.filter((payslip) => payslip.employee?.bankAccount)
+  const held = payslips.filter((payslip) => !payslip.employee?.bankAccount)
+
+  await Payslip.updateMany(
+    { _id: { $in: payable.map((payslip) => payslip._id) } },
+    { $set: { state: 'paid' } }
+  )
 
   payrun.state = 'paid'
   await payrun.save()
-  await Payslip.updateMany({ payrun: payrun._id }, { $set: { state: 'paid' } })
 
-  res.json({ payrun })
+  res.json({
+    payrun,
+    paid: payable.length,
+    held: held.map((payslip) => payslip.employee?.name ?? 'Unknown'),
+  })
+})
+
+// B8. Only a signed-off run goes out, so nobody receives a payslip that is still
+// being recomputed.
+export const sendPayslips = asyncHandler(async (req, res) => {
+  const payrun = await Payrun.findById(req.params.id)
+  if (!payrun) throw httpError(404, 'Payrun not found')
+
+  if (!LOCKED.includes(payrun.state)) {
+    throw httpError(400, 'Validate this payrun before sending its payslips')
+  }
+
+  const payslips = await Payslip.find({ payrun: payrun._id }).populate({
+    path: 'employee',
+    select: 'name workEmail',
+  })
+
+  let sent = 0
+  const failed = []
+
+  for (const payslip of payslips) {
+    const to = payslip.employee?.workEmail
+    if (!to) {
+      failed.push(`${payslip.employee?.name ?? 'Unknown'} has no work email`)
+      continue
+    }
+
+    const ok = await send({
+      to,
+      ...payslipEmail({ payslip, link: `${env.clientOrigin}/payslips/${payslip._id}/print` }),
+    })
+
+    if (!ok) {
+      failed.push(`${payslip.employee.name} could not be emailed`)
+      continue
+    }
+
+    payslip.emailedAt = new Date()
+    await payslip.save()
+    sent += 1
+  }
+
+  res.json({ sent, failed })
 })
 
 export const remove = asyncHandler(async (req, res) => {

@@ -14,7 +14,7 @@ import { allocationsApi, employeesApi, timeOffTypesApi } from '@/api/hr'
 import { useAuth } from '@/context/AuthContext'
 import { useNotify } from '@/context/NotificationContext'
 import { getErrorMessage } from '@/utils/errorUtils'
-import { ALLOCATION_MODES, ALLOCATION_STATES } from '@/config/constants'
+import { ALLOCATION_MODES, ALLOCATION_STATES, MAX_PAGE_SIZE } from '@/config/constants'
 
 const HR_ROLES = ['hr_manager', 'hr_payroll_user', 'hr_payroll_manager', 'admin']
 
@@ -79,7 +79,7 @@ export function AllocationDrawer({ allocationId, onClose, onSaved }) {
       try {
         const [{ types }, staff] = await Promise.all([
           timeOffTypesApi.list(),
-          canManage ? employeesApi.list() : Promise.resolve({ employees: [] }),
+          canManage ? employeesApi.list({ pageSize: MAX_PAGE_SIZE }) : Promise.resolve({ employees: [] }),
         ])
         if (cancelled) return
         setOptions({ employees: staff.employees, types })

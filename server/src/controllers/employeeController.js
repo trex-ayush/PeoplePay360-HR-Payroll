@@ -1,8 +1,13 @@
 import { Employee } from '../models/Employee.js'
 import { Contract } from '../models/Contract.js'
+import { Attendance } from '../models/Attendance.js'
+import { TimeOffRequest } from '../models/TimeOffRequest.js'
+import { TimeOffAllocation } from '../models/TimeOffAllocation.js'
 import { User } from '../models/User.js'
-import { inviteUser, listInvites } from '../services/invite.js'
+import { listInvites } from '../services/invite.js'
+import { grantAccess } from '../services/access.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
+import { paginate } from '../utils/paginate.js'
 
 const POPULATE = [
   { path: 'department', select: 'name' },
@@ -11,10 +16,10 @@ const POPULATE = [
 ]
 
 export const list = asyncHandler(async (req, res) => {
-  const { search, department, employeeType, active = 'true' } = req.query
+  const { search, department, employeeType, active, page, pageSize } = req.query
 
   const filter = {}
-  if (active !== 'all') filter.active = active !== 'false'
+  if (active !== 'all') filter.active = true
   if (department) filter.department = department
   if (employeeType) filter.employeeType = employeeType
   if (search) {
@@ -26,8 +31,14 @@ export const list = asyncHandler(async (req, res) => {
     ]
   }
 
-  const employees = await Employee.find(filter).populate(POPULATE).sort({ name: 1 })
-  res.json({ employees })
+  const { rows, ...meta } = await paginate(Employee, filter, {
+    sort: { name: 1 },
+    populate: POPULATE,
+    page,
+    pageSize,
+  })
+
+  res.json({ employees: rows, ...meta })
 })
 
 export const getOne = asyncHandler(async (req, res) => {
@@ -44,33 +55,25 @@ async function nextEmployeeCode() {
   return `EMP${String(highest + 1).padStart(3, '0')}`
 }
 
+// Feeds the counts on the employee form's smart buttons.
+export const related = asyncHandler(async (req, res) => {
+  const employee = { employee: req.params.id }
+
+  const [contracts, attendance, timeOff, allocations] = await Promise.all([
+    Contract.countDocuments(employee),
+    Attendance.countDocuments(employee),
+    TimeOffRequest.countDocuments(employee),
+    TimeOffAllocation.countDocuments(employee),
+  ])
+
+  res.json({ contracts, attendance, timeOff, allocations })
+})
+
 export const nextCode = asyncHandler(async (_req, res) => {
   res.json({ code: await nextEmployeeCode() })
 })
 
 // Roles on an employee mean "give this person a login", handled in the same step.
-async function grantAccess(employee, roles, actor) {
-  const existing = await User.findOne({ employeeId: employee._id })
-  if (existing) {
-    existing.roles = roles
-    await existing.save()
-    return existing.password ? null : inviteUser(existing, actor)
-  }
-
-  if (await User.findOne({ email: employee.workEmail })) {
-    throw httpError(409, `An account with ${employee.workEmail} already exists`)
-  }
-
-  const user = await User.create({
-    name: employee.name,
-    email: employee.workEmail,
-    roles,
-    employeeId: employee._id,
-  })
-
-  return inviteUser(user, actor)
-}
-
 export const create = asyncHandler(async (req, res) => {
   const { roles, ...fields } = req.body
 

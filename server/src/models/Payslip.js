@@ -37,6 +37,7 @@ const payslipSchema = new mongoose.Schema(
     netAmount: { type: Number, default: 0 },
 
     state: { type: String, enum: PAYSLIP_STATES, default: 'done', index: true },
+    emailedAt: { type: Date, default: null },
   },
   { timestamps: true }
 )

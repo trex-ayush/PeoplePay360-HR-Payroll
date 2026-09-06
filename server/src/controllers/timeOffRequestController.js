@@ -2,6 +2,7 @@ import { Employee } from '../models/Employee.js'
 import { TimeOffRequest } from '../models/TimeOffRequest.js'
 import { TimeOffType } from '../models/TimeOffType.js'
 import {
+  assertCanDecide,
   assertNotSelf,
   computeDuration,
   findAllocationFor,
@@ -10,6 +11,7 @@ import {
 } from '../services/leave.js'
 import { assertOwn, ownFilter } from '../middleware/auth.js'
 import { asyncHandler, httpError } from '../utils/asyncHandler.js'
+import { paginate } from '../utils/paginate.js'
 
 const POPULATE = [
   { path: 'employee', select: 'name code' },
@@ -39,17 +41,28 @@ async function durationFor(employeeId, typeId, dateFrom, dateTo) {
 }
 
 export const list = asyncHandler(async (req, res) => {
-  const { employee, type, state } = req.query
+  const { employee, type, state, team, page, pageSize } = req.query
 
   const filter = {}
   if (employee) filter.employee = employee
   if (type) filter.type = type
   if (state) filter.state = state
 
-  const requests = await TimeOffRequest.find({ ...filter, ...ownFilter(req) })
-    .populate(POPULATE)
-    .sort({ dateFrom: -1 })
-  res.json({ requests })
+  // "My Team" is whoever reports to the signed-in user, which is the set they are
+  // expected to approve for.
+  if (team === 'true') {
+    const reports = await Employee.find({ manager: req.user.employeeId }).select('_id').lean()
+    filter.employee = { $in: reports.map((e) => e._id) }
+  }
+
+  const { rows, ...meta } = await paginate(TimeOffRequest, { ...filter, ...ownFilter(req) }, {
+    sort: { dateFrom: -1 },
+    populate: POPULATE,
+    page,
+    pageSize,
+  })
+
+  res.json({ requests: rows, ...meta })
 })
 
 export const getOne = asyncHandler(async (req, res) => {
@@ -110,6 +123,8 @@ export const approve = asyncHandler(async (req, res) => {
   assertNotSelf(req.user, request.employee, 'time off request')
 
   const type = await TimeOffType.findById(request.type)
+  await assertCanDecide(req.user, request, type)
+
   const split = await splitDuration(request, type, req.body?.paidDuration)
 
   request.state = 'approved'
