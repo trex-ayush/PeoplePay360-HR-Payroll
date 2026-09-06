@@ -1,0 +1,97 @@
+name: Deploy API
+
+# Deploys the whole SAM stack — Lambda, HTTP API, S3 bucket and CloudFront.
+# The frontend workflow reads its bucket and distribution id from this stack,
+# so this has to run at least once before that one can.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - 'template.yaml'
+      - '.github/workflows/server.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+env:
+  STACK_NAME: peoplepay360
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # A stack whose very first create rolled back can never be updated, only
+      # deleted, so a failed first attempt does not need clearing by hand.
+      - name: Clear a rolled back first attempt
+        run: |
+          status=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" --region "$AWS_REGION" \
+            --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo NONE)
+
+          if [ "$status" = "ROLLBACK_COMPLETE" ]; then
+            aws cloudformation delete-stack --stack-name "$STACK_NAME" --region "$AWS_REGION"
+            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" --region "$AWS_REGION"
+          fi
+
+      - name: SAM build
+        run: sam build
+
+      - name: SAM deploy
+        env:
+          MongoUri: ${{ secrets.MONGODB_URI }}
+          JwtSecret: ${{ secrets.JWT_SECRET }}
+          AdminSecret: ${{ secrets.ADMIN_SECRET }}
+          ClientOrigin: ${{ secrets.CLIENT_ORIGIN }}
+          SmtpHost: ${{ secrets.SMTP_HOST }}
+          SmtpPort: ${{ secrets.SMTP_PORT }}
+          SmtpUser: ${{ secrets.SMTP_USER }}
+          SmtpPass: ${{ secrets.SMTP_PASS }}
+          SmtpFrom: ${{ secrets.SMTP_FROM }}
+        run: |
+          # An empty secret would reach SAM as "Name=" and be rejected, so an
+          # unset one is dropped and the template default applies instead.
+          params=()
+          for name in MongoUri JwtSecret AdminSecret ClientOrigin SmtpHost SmtpPort SmtpUser SmtpPass SmtpFrom; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              params+=("$name=$value")
+            fi
+          done
+
+          sam deploy \
+            --stack-name "$STACK_NAME" \
+            --region "$AWS_REGION" \
+            --capabilities CAPABILITY_IAM \
+            --resolve-s3 \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides "${params[@]}"
+
+      - name: Show stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --region "$AWS_REGION" \
+            --query "Stacks[0].Outputs" \
+            --output table
