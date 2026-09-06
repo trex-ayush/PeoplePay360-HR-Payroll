@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "PeoplePay360 — HR & Payroll API",
+  "description": "PeoplePay360 \u2014 HR & Payroll API",
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "seed": "node src/seed/index.js"
+    "seed": "node src/seed/index.js",
+    "test": "node --test"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
